@@ -1,3 +1,13 @@
+## 本项目扩展说明
+
+此仓库在 NanmiCoder/MediaCrawler 固定基线 `68d9ef1c1da22eab75940dfd7cec259907006538` 上维护一个个人学习/非商业研究项目。上游的采集器、文档和许可证说明保留在下方；本项目的范围与当前状态见 [项目说明](docs/project-overview.md)。
+
+**项目状态：** 上游源码已集成；本项目专属功能仍未实现，当前仓库尚不是可交付的评论采集管理系统。
+
+**项目文档：** [设计规格](docs/superpowers/specs/2026-10-28-douyin-xhs-comment-collector-design.md) · [实施路线图](docs/architecture/roadmap.md) · [API 契约](docs/api/openapi.yaml) · [开发规范](docs/development/standards.md) · [部署与测试文档](docs/deployment/cloud-deployment.md)
+
+---
+
 # 🔥 MediaCrawler - 自媒体平台爬虫 🕷️
 
 <div align="center">
