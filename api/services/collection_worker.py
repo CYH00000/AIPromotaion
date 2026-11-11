@@ -3,6 +3,7 @@
 # Licensed under NON-COMMERCIAL LEARNING LICENSE 1.1; see LICENSE.
 
 import asyncio
+import os
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,12 +15,14 @@ from api.schemas.crawler import CrawlerStartRequest, CrawlerTypeEnum, LoginTypeE
 from api.services.account_service import login_active
 from api.services.collection_pipeline import ingest_staging_directory
 from api.services.crawler_manager import crawler_manager
+from api.services.run_progress import JsonlLineCounter, is_stalled
 from api.services.task_service import create_run, next_scheduled_time
 from database.collector_database import collector_session
 from database.collector_models import CollectionRun, CollectionTask, utc_now
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+STALL_TIMEOUT_SECONDS = int(os.getenv("COLLECTOR_STALL_TIMEOUT_SECONDS", "180"))
 
 
 class CollectionWorker:
@@ -52,7 +55,9 @@ class CollectionWorker:
                 stored = await session.get(CollectionRun, run["id"])
                 if stored and stored.status == "running":
                     stored.status = "interrupted"
+                    stored.phase = "failed"
                     stored.counts = counts
+                    stored.progress = {**(stored.progress or {}), "stalled": False}
                     stored.finished_at = utc_now()
                     stored.safe_summary = "Service restarted during collection; partial results were retained."
         self._cleanup_stale_staging()
@@ -125,6 +130,14 @@ class CollectionWorker:
                 return None
             run.status = "running"
             run.started_at = utc_now()
+            run.phase = "starting"
+            run.progress = {
+                "staged_contents": 0,
+                "staged_comments": 0,
+                "stalled": False,
+                "last_log_id": 0,
+            }
+            run.last_activity_at = utc_now()
             return {"run_id": run.id, "task_id": task.id, "config": run.config_snapshot}
 
     async def _run_loop(self) -> None:
@@ -157,6 +170,11 @@ class CollectionWorker:
         config = run["config"]
         staging = PROJECT_ROOT / "data" / "project_runs" / run["run_id"]
         staging.mkdir(parents=True, exist_ok=True)
+        progress_state = {"phase": "starting"}
+        progress_task = asyncio.create_task(
+            self._progress_loop(run["run_id"], staging, progress_state),
+            name=f"run-progress-{run['run_id']}",
+        )
         try:
             crawl_config = CrawlerStartRequest(
                 platform=PlatformEnum(config["platform"]),
@@ -188,11 +206,14 @@ class CollectionWorker:
                 await self._finish_run(run["run_id"], "failed", {}, "crawler_busy", "Another collector process is running.")
                 return
 
+            progress_state["phase"] = "crawling"
             process = crawler_manager.process
             exit_code = await asyncio.to_thread(process.wait)
             if crawler_manager._read_task:
                 await crawler_manager._read_task
+            progress_state["phase"] = "filtering"
             counts = await ingest_staging_directory(run["run_id"], config["platform"], config, staging)
+            progress_state["phase"] = "finalizing"
             async with collector_session() as session:
                 stored_run = await session.get(CollectionRun, run["run_id"])
                 cancelled = stored_run.cancel_requested if stored_run else False
@@ -211,9 +232,52 @@ class CollectionWorker:
                 status, error_code, summary = "partial", f"crawler_exit_{exit_code}", "Collection stopped with partial results; saved records were retained."
             else:
                 status, error_code, summary = "failed", f"crawler_exit_{exit_code}", "Upstream collector exited with an error."
+            progress_task.cancel()
+            await asyncio.gather(progress_task, return_exceptions=True)
             await self._finish_run(run["run_id"], status, counts, error_code, summary)
         finally:
+            progress_task.cancel()
+            await asyncio.gather(progress_task, return_exceptions=True)
             self._safe_remove_staging(staging)
+
+    async def _progress_loop(self, run_id: str, staging: Path, state: dict[str, str]) -> None:
+        counter = JsonlLineCounter()
+        last_counts = (0, 0)
+        last_log_id = crawler_manager._log_id
+        last_activity = utc_now()
+        while True:
+            await asyncio.sleep(3)
+            try:
+                contents, comments = counter.scan(staging)
+                log_id = crawler_manager._log_id
+                phase = state["phase"]
+                now = utc_now()
+                changed = (contents, comments) != last_counts or log_id != last_log_id
+                if phase == "crawling":
+                    if changed:
+                        last_activity = now
+                    stalled = is_stalled(last_activity, now, STALL_TIMEOUT_SECONDS)
+                else:
+                    last_activity = now
+                    stalled = False
+                async with collector_session() as session:
+                    run = await session.get(CollectionRun, run_id)
+                    if run is None or run.status != "running":
+                        return
+                    run.phase = phase
+                    run.progress = {
+                        "staged_contents": contents,
+                        "staged_comments": comments,
+                        "stalled": stalled,
+                        "last_log_id": log_id,
+                    }
+                    run.last_activity_at = last_activity
+                last_counts = (contents, comments)
+                last_log_id = log_id
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                print(f"Run progress update error: {type(exc).__name__}")
 
     @staticmethod
     def _safe_remove_staging(staging: Path) -> None:
@@ -238,6 +302,13 @@ class CollectionWorker:
             if run is None:
                 return
             run.status = status
+            run.phase = {
+                "succeeded": "completed",
+                "partial": "completed",
+                "cancelled": "cancelled",
+                "failed": "failed",
+                "interrupted": "failed",
+            }.get(status, "completed")
             run.counts = counts
             run.error_code = error_code
             run.safe_summary = summary
