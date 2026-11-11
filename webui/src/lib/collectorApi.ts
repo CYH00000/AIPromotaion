@@ -121,6 +121,7 @@ const API_ERROR_MESSAGES: Record<string, string> = {
   'Try again later': '尝试次数过多，请稍后再试',
   'Task not found': '任务不存在',
   'Task is paused or disabled': '任务已暂停或停用',
+  'Task is disabled': '任务已停用',
   'Run not found': '运行记录不存在',
   'Run is already finished': '运行已经结束',
   'Comment not found': '评论不存在',

@@ -30,6 +30,11 @@ from api.services.collection_pipeline import spreadsheet_safe
 router = APIRouter(dependencies=[Depends(require_admin)], tags=["collection"])
 
 
+def manual_run_allowed(state: str) -> bool:
+    """Pausing only stops scheduled triggers; disabled tasks cannot be run."""
+    return state in {"enabled", "paused"}
+
+
 @router.get("/tasks")
 async def list_tasks():
     async with collector_session() as session:
@@ -107,8 +112,8 @@ async def run_task(task_id: str, _csrf: None = Depends(require_csrf)):
         task = await session.get(CollectionTask, task_id)
         if task is None:
             raise HTTPException(status_code=404, detail="Task not found")
-        if task.state != "enabled":
-            raise HTTPException(status_code=409, detail="Task is paused or disabled")
+        if not manual_run_allowed(task.state):
+            raise HTTPException(status_code=409, detail="Task is disabled")
         run = create_run(task, "manual")
         session.add(run)
         await session.flush()

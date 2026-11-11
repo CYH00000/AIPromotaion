@@ -225,7 +225,7 @@ export function CollectorWorkspace({ username, onLogout }: { username: string; o
                         <td className="px-4 py-4"><Badge variant={taskStateVariant(task.state)}>{task.state === 'enabled' ? '启用' : task.state === 'paused' ? '暂停' : '停用'}</Badge></td>
                         <td className="px-4 py-4">
                           <div className="flex flex-wrap gap-1">
-                            <Button variant="secondary" size="sm" title="立即运行" disabled={task.state !== 'enabled'} onClick={() => executeTaskAction('任务已加入串行队列', () => collectorApi.runTask(task.id))}><Play /></Button>
+                            <Button variant="secondary" size="sm" title="立即运行" disabled={task.state === 'disabled'} onClick={() => executeTaskAction('任务已加入串行队列', () => collectorApi.runTask(task.id))}><Play /></Button>
                             {task.state === 'enabled' ? <Button variant="outline" size="sm" title="暂停计划" onClick={() => executeTaskAction('已暂停计划', () => collectorApi.pauseTask(task.id))}><Pause /></Button> : task.state === 'paused' ? <Button variant="outline" size="sm" title="恢复计划" onClick={() => executeTaskAction('已恢复计划', () => collectorApi.resumeTask(task.id))}><Play /></Button> : null}
                             <Button variant="outline" size="sm" title="编辑任务" onClick={() => setEditingTask(task)}><Edit3 /></Button>
                             {task.state !== 'disabled' && <Button variant="destructive" size="sm" title="停用任务" onClick={() => executeTaskAction('任务已停用', () => collectorApi.disableTask(task.id))}><Trash2 /></Button>}
@@ -238,7 +238,7 @@ export function CollectorWorkspace({ username, onLogout }: { username: string; o
                 </table>
               </div>
             </Card>
-            <p className="text-xs leading-5 text-cyber-text-muted">定时任务按上海时区（Asia/Shanghai）执行。需要有效的平台登录态；遇到验证或限流时任务会停止并保留已有结果。系统不会绕过平台验证。</p>
+            <p className="text-xs leading-5 text-cyber-text-muted">定时任务按上海时区（Asia/Shanghai）执行。暂停只停止未来定时计划，手动运行仍可执行；停用任务不能再次运行。需要有效的平台登录态；遇到验证或限流时任务会停止并保留已有结果。系统不会绕过平台验证。</p>
           </section>
         ) : tab === 'comments' ? (
           <section className="space-y-4">

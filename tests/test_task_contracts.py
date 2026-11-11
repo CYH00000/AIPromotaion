@@ -2,6 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from api.schemas.collection import TaskCreate
+from api.routers.collection import manual_run_allowed
 
 
 def test_task_contract_removes_temporary_xhs_query_tokens():
@@ -38,3 +39,9 @@ def test_task_contract_extracts_douyin_video_id_without_share_query():
     )
 
     assert task.source_values == ["999999"]
+
+
+def test_manual_run_allowed_for_enabled_and_paused_tasks():
+    assert manual_run_allowed("enabled") is True
+    assert manual_run_allowed("paused") is True
+    assert manual_run_allowed("disabled") is False
