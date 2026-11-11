@@ -72,6 +72,16 @@ export interface CollectedComment {
   last_observed_at: string
 }
 
+export interface AccountInfo {
+  platform: PlatformId
+  label: string
+  configured: boolean
+  last_login_at: string | null
+  login_state: 'idle' | 'running' | 'succeeded' | 'failed'
+  login_started_at: string | null
+  login_error: string | null
+}
+
 export interface TaskPayload {
   name: string
   platform: PlatformId
@@ -162,6 +172,17 @@ export const collectorApi = {
     link.click()
     URL.revokeObjectURL(url)
   },
+}
+
+export const accountsApi = {
+  async list() {
+    const response = await api.get<{ items: AccountInfo[] }>('/accounts')
+    return response.data.items
+  },
+  login: (platform: PlatformId) =>
+    mutate<{ platform: string; status: string }>(`/accounts/${platform}/login`),
+  unbind: (platform: PlatformId) =>
+    mutate<void>(`/accounts/${platform}`, undefined, 'delete'),
 }
 
 export const filterRulesApi = {

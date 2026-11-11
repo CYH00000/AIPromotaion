@@ -13,8 +13,9 @@ import {
   type CollectedComment,
 } from '@/lib/collectorApi'
 import { TaskFormDialog } from './TaskFormDialog'
+import { AccountsPanel } from './AccountsPanel'
 
-type WorkspaceTab = 'tasks' | 'comments'
+type WorkspaceTab = 'tasks' | 'comments' | 'accounts'
 
 function formatDate(value: string | null | undefined) {
   if (!value) return '—'
@@ -156,18 +157,19 @@ export function CollectorWorkspace({ username, onLogout }: { username: string; o
           <div className="flex gap-1" role="tablist" aria-label="工作台视图">
             <button role="tab" aria-selected={tab === 'tasks'} onClick={() => setTab('tasks')} className={`border-b-2 px-4 py-3 text-sm ${tab === 'tasks' ? 'border-cyber-neon-cyan text-cyber-neon-cyan' : 'border-transparent text-cyber-text-muted hover:text-cyber-text-primary'}`}>任务管理</button>
             <button role="tab" aria-selected={tab === 'comments'} onClick={() => setTab('comments')} className={`border-b-2 px-4 py-3 text-sm ${tab === 'comments' ? 'border-cyber-neon-cyan text-cyber-neon-cyan' : 'border-transparent text-cyber-text-muted hover:text-cyber-text-primary'}`}>评论结果</button>
+            <button role="tab" aria-selected={tab === 'accounts'} onClick={() => setTab('accounts')} className={`border-b-2 px-4 py-3 text-sm ${tab === 'accounts' ? 'border-cyber-neon-cyan text-cyber-neon-cyan' : 'border-transparent text-cyber-text-muted hover:text-cyber-text-primary'}`}>账号管理</button>
           </div>
           {tab === 'tasks' ? (
             <div className="flex gap-2 pb-2">
               <Button variant="outline" size="sm" onClick={() => refreshTasks()}><RefreshCw />刷新</Button>
               <Button size="sm" onClick={() => setEditingTask(null)}><Plus />新建任务</Button>
             </div>
-          ) : (
+          ) : tab === 'comments' ? (
             <div className="flex gap-2 pb-2">
               <Button variant="outline" size="sm" onClick={() => exportComments('csv')}><Download />CSV</Button>
               <Button variant="outline" size="sm" onClick={() => exportComments('xlsx')}><Download />Excel</Button>
             </div>
-          )}
+          ) : null}
         </div>
 
         {tab === 'tasks' ? (
@@ -217,7 +219,7 @@ export function CollectorWorkspace({ username, onLogout }: { username: string; o
             </Card>
             <p className="text-xs leading-5 text-cyber-text-muted">定时任务按 Asia/Shanghai 时区执行。需要有效的平台登录态；遇到验证或限流时任务会停止并保留已有结果。系统不会绕过平台验证。</p>
           </section>
-        ) : (
+        ) : tab === 'comments' ? (
           <section className="space-y-4">
             <Card className="p-4">
               <form onSubmit={searchComments} className="grid gap-3 md:grid-cols-[minmax(220px,1fr)_160px_220px_auto]">
@@ -260,6 +262,8 @@ export function CollectorWorkspace({ username, onLogout }: { username: string; o
               </footer>
             </Card>
           </section>
+        ) : (
+          <AccountsPanel />
         )}
       </div>
       {editingTask !== undefined && <TaskFormDialog task={editingTask} onClose={() => setEditingTask(undefined)} onSaved={refreshTasks} />}
