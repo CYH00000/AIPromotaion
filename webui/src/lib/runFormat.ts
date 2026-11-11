@@ -12,6 +12,22 @@ const PHASE_LABELS: Record<string, string> = {
   cancelled: '已取消',
 }
 
+const SUMMARY_LABELS: Record<string, string> = {
+  'Collection finished.': '采集完成。',
+  'Some comments could not be semantically evaluated and were not saved.': '部分评论未能完成智能语义判断，未保存。',
+  'Collection stopped with partial results; saved records were retained.': '采集中断，已保存部分结果。',
+  'Upstream collector exited with an error.': '上游采集器异常退出。',
+  'Collection was cancelled; already collected records were retained.': '采集已取消，已采集的记录已保留。',
+  'Service restarted during collection; partial results were retained.': '服务在采集期间重启，已保留部分结果。',
+  'Task is no longer available.': '任务已不可用。',
+  'Another collector process is running.': '已有采集进程正在运行。',
+}
+
+export function localizeSummary(summary: string | null | undefined): string {
+  if (!summary) return ''
+  return SUMMARY_LABELS[summary] ?? summary
+}
+
 export function runPhaseLabel(run: CollectionRun): string {
   if (run.status === 'succeeded' || run.status === 'partial') return '已完成'
   if (run.status === 'failed') return '失败'

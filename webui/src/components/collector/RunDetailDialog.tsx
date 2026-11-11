@@ -17,7 +17,7 @@ import {
   type CollectionRun,
   type CrawlerLog,
 } from '@/lib/collectorApi'
-import { elapsedLabel, relativeTime, runPhaseLabel } from '@/lib/runFormat'
+import { elapsedLabel, localizeSummary, relativeTime, runPhaseLabel } from '@/lib/runFormat'
 
 interface RunDetailDialogProps {
   run: CollectionRun | null
@@ -135,6 +135,12 @@ export function RunDetailDialog({ run, onClose, onChanged }: RunDetailDialogProp
             {active && (
               <p className="rounded-md border border-cyber-neon-cyan/30 bg-cyber-neon-cyan/5 px-3 py-2 text-xs leading-5 text-cyber-text-secondary">
                 暂存数量会实时增长；命中结果要等采集结束并完成智能筛选后才会写入评论列表。
+              </p>
+            )}
+
+            {localizeSummary(run.safe_summary) && (
+              <p className="rounded-md border border-cyber-border-subtle px-3 py-2 text-xs text-cyber-text-secondary">
+                结果摘要：{localizeSummary(run.safe_summary)}
               </p>
             )}
 

@@ -15,7 +15,7 @@ import {
 import { TaskFormDialog } from './TaskFormDialog'
 import { AccountsPanel } from './AccountsPanel'
 import { RunDetailDialog } from './RunDetailDialog'
-import { relativeTime, runPhaseLabel } from '@/lib/runFormat'
+import { localizeSummary, relativeTime, runPhaseLabel } from '@/lib/runFormat'
 
 type WorkspaceTab = 'tasks' | 'comments' | 'accounts'
 
@@ -216,7 +216,7 @@ export function CollectorWorkspace({ username, onLogout }: { username: string; o
                                   </p>
                                 </>
                               ) : (
-                                <p className="mt-1 max-w-44 text-xs text-cyber-text-secondary">{latestRun.safe_summary ?? `${latestRun.counts.matched ?? 0} 条命中`}</p>
+                                <p className="mt-1 max-w-44 text-xs text-cyber-text-secondary">{localizeSummary(latestRun.safe_summary) || `${latestRun.counts.matched ?? 0} 条命中`}</p>
                               )}
                               <Button variant="outline" size="sm" className="mt-2" onClick={() => setSelectedRun(latestRun)}>详情</Button>
                             </>
