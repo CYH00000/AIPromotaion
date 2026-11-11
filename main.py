@@ -30,6 +30,9 @@ if sys.stderr and hasattr(sys.stderr, 'buffer'):
         sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 import asyncio
+import json
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional, Type
 
 import cmd_arg
@@ -45,6 +48,9 @@ from media_platform.xhs import XiaoHongShuCrawler
 from media_platform.zhihu import ZhihuCrawler
 from tools.async_file_writer import AsyncFileWriter
 from var import crawler_type_var
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent
 
 
 class CrawlerFactory:
@@ -112,6 +118,22 @@ async def main() -> None:
 
     crawler = CrawlerFactory.create_crawler(platform=config.PLATFORM)
     await crawler.start()
+
+    if config.LOGIN_ONLY:
+        marker_dir = PROJECT_ROOT / "browser_data" / ".login_state"
+        marker_dir.mkdir(parents=True, exist_ok=True)
+        marker_path = marker_dir / f"{config.PLATFORM}.json"
+        marker_path.write_text(
+            json.dumps(
+                {
+                    "platform": config.PLATFORM,
+                    "logged_in_at": datetime.now(timezone.utc).isoformat(),
+                }
+            ),
+            encoding="utf-8",
+        )
+        print(f"[Main] Login-only mode completed for {config.PLATFORM}")
+        return
 
     _flush_excel_if_needed()
 

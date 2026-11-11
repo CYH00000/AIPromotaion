@@ -234,6 +234,15 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
                 show_default=True,
             ),
         ] = str(config.HEADLESS),
+        login_only: Annotated[
+            str,
+            typer.Option(
+                "--login_only",
+                help="Complete login state and exit without crawling, supports yes/true/t/y/1 or no/false/f/n/0",
+                rich_help_panel="Account Configuration",
+                show_default=True,
+            ),
+        ] = str(config.LOGIN_ONLY),
         save_data_option: Annotated[
             SaveDataOptionEnum,
             typer.Option(
@@ -348,6 +357,7 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
         enable_sub_comment = _to_bool(get_sub_comment)
         enable_media = _to_bool(get_media)
         enable_headless = _to_bool(headless)
+        enable_login_only = _to_bool(login_only)
         enable_ip_proxy_value = _to_bool(enable_ip_proxy)
         init_db_value = init_db.value if init_db else None
 
@@ -366,6 +376,7 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
         config.ENABLE_GET_MEDIA = enable_media
         config.HEADLESS = enable_headless
         config.CDP_HEADLESS = enable_headless
+        config.LOGIN_ONLY = enable_login_only
         config.SAVE_DATA_OPTION = save_data_option.value
         config.COOKIES = cookies
         config.CRAWLER_MAX_COMMENTS_COUNT_SINGLENOTES = max_comments_count_singlenotes
@@ -422,6 +433,7 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
             get_sub_comment=config.ENABLE_GET_SUB_COMMENTS,
             get_media=config.ENABLE_GET_MEDIA,
             headless=config.HEADLESS,
+            login_only=config.LOGIN_ONLY,
             save_data_option=config.SAVE_DATA_OPTION,
             init_db=init_db_value,
             cookies=config.COOKIES,

@@ -253,6 +253,8 @@ class CrawlerManager:
             cmd.extend(["--save_data_path", save_data_path])
 
         cmd.extend(["--headless", "true" if config.headless else "false"])
+        if config.login_only:
+            cmd.extend(["--login_only", "true"])
 
         return cmd
 

@@ -120,6 +120,9 @@ class XiaoHongShuCrawler(AbstractCrawler):
                     urls=self.cookie_urls,
                 )
 
+            if config.LOGIN_ONLY:
+                utils.logger.info("[XiaoHongShuCrawler.start] Login-only mode completed; skipping crawl")
+                return
             crawler_type_var.set(config.CRAWLER_TYPE)
             if config.CRAWLER_TYPE == "search":
                 # Search for notes and retrieve their comment information.
