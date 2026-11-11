@@ -6,9 +6,9 @@
 
 | 表 | 关键字段 | 约束与用途 |
 |---|---|---|
-| `collector_tasks` | 平台、来源模式/值、包含/排除关键词、内容/评论上限、内容排序、发布时间范围、计划、状态、下次执行时间 | 关键词任务可选择综合/最新/最多点赞排序，以及不限/一天/一周/半年发布时间；指定链接模式按链接采集。任务停用只停止未来计划，不删除运行和评论。URL 在保存前去掉查询令牌。 |
+| `collector_tasks` | 平台、来源模式/值、包含/排除关键词、`max_contents`、`max_comments_per_content`、`content_sort`、`publish_time_days`、计划、状态、下次执行时间 | `content_sort` 为 general/latest/most_liked；`publish_time_days` 为 0/1/7/180。关键词任务应用排序和时间范围；指定链接模式按链接采集。任务停用只停止未来计划，不删除运行和评论。URL 在保存前去掉查询令牌。 |
 | `collector_filter_rules` | 规则 ID、谱系 ID/版本、父版本、自然语言意图、受限 JSON 定义、模型名、draft/approved 状态、批准时间 | 草稿不能绑定任务；批准后字段只读。编辑产生新的子版本。 |
-| `collector_runs` | `task_id`, `trigger_type`, `status`, `config_snapshot`, `counts`, `error_code`, `safe_summary` | 每次手动或计划执行一行；任务配置在开始时快照；运行状态包括 queued/running/succeeded/partial/failed/cancelled/interrupted。 |
+| `collector_runs` | `task_id`, `trigger_type`, `status`, `phase`, `config_snapshot`, `counts`, `progress`, `last_activity_at`, `error_code`, `safe_summary` | 每次手动或计划执行一行；任务配置在开始时快照；`phase` 表示 queued/starting/crawling/filtering/ingesting/finalizing/completed/failed/cancelled；`progress` 保存暂存数量、卡死标志和最近日志序号；运行状态包括 queued/running/succeeded/partial/failed/cancelled/interrupted。 |
 | `collector_comments` | 平台评论 ID、内容 ID/标题/链接、正文、评论时间、命中关键词、作者三字段 | 唯一键 `(platform, external_comment_id)`；无稳定平台评论 ID 的记录跳过。作者字段只包含平台用户 ID、昵称和主页 URL。 |
 | `collector_comment_snapshots` | `comment_id`, `run_id`, 点赞数、回复数、作者字段快照、命中关键词、规则 ID/版本、筛选理由、观测时间 | 唯一键 `(comment_id, run_id)`；重复入库更新该次快照，不产生重复行。 |
 | `collector_admin_sessions` | 会话摘要、CSRF 摘要、创建/过期/撤销时间 | 不存明文会话令牌；单管理员会话最长 12 小时。 |
@@ -25,3 +25,10 @@
 ## 尚未单独规范化的目标实体
 
 完整设计曾规划 `contents`、`authors` 和 `comment_rule_matches`。本地 MVP 将内容与作者字段内嵌在 `collector_comments`，规则版本保存于 `collector_filter_rules`，规则匹配信息写入每次运行快照。
+
+## 运行时与恢复存储
+
+- `browser_data/<platform>_user_data_dir/`（或 CDP 模式的 `browser_data/cdp_<platform>_user_data_dir/`）保存平台登录态；`browser_data/.login_state/<platform>.json` 保存最近一次登录校验标记。
+- 平台账号状态不新增数据库表；`configured` 表示本机配置目录存在，不等同于登录态一定有效。
+- 服务中断时未完成入库的暂存目录移动到 `data/recovered_runs/<run_id>/`，对应运行标记为 `interrupted`；不会自动重新执行 AI 入库。
+- `counts` 除数字统计外，还可包含 `semantic_error_code` 和 `semantic_error` 字符串；它们是安全错误码和摘要，不包含密钥或账号数据。

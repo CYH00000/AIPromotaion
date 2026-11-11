@@ -255,6 +255,90 @@ paths:
       responses:
         '204':
           description: Successful Response
+  /api/accounts:
+    get:
+      tags:
+      - accounts
+      summary: List Accounts
+      operationId: list_accounts_api_accounts_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AccountView'
+        '401':
+          description: Authentication required
+  /api/accounts/{platform}/login:
+    post:
+      tags:
+      - accounts
+      summary: Login Account
+      operationId: login_account_api_accounts__platform__login_post
+      parameters:
+      - name: platform
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - dy
+          - xhs
+          title: Platform
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountLoginResponse'
+        '400':
+          description: Unsupported platform
+        '409':
+          description: Collector process busy
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/accounts/{platform}:
+    delete:
+      tags:
+      - accounts
+      summary: Unbind Account
+      operationId: unbind_account_api_accounts__platform__delete
+      parameters:
+      - name: platform
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - dy
+          - xhs
+          title: Platform
+      responses:
+        '204':
+          description: Successful Response
+        '400':
+          description: Unsupported platform
+        '409':
+          description: Collector process busy
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/tasks:
     get:
       tags:
@@ -387,7 +471,18 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                type: object
+                required:
+                - run_id
+                - status
+                properties:
+                  run_id:
+                    type: string
+                    title: Run Id
+                  status:
+                    type: string
+                    title: Status
         '422':
           description: Validation Error
           content:
@@ -475,7 +570,15 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RunView'
         '422':
           description: Validation Error
           content:
@@ -500,7 +603,22 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                type: object
+                required:
+                - run_id
+                - status
+                - cancel_requested
+                properties:
+                  run_id:
+                    type: string
+                    title: Run Id
+                  status:
+                    type: string
+                    title: Status
+                  cancel_requested:
+                    type: boolean
+                    title: Cancel Requested
         '422':
           description: Validation Error
           content:
@@ -1143,6 +1261,23 @@ components:
           minimum: 1.0
           title: Max Comments Per Content
           default: 100
+        content_sort:
+          type: string
+          enum:
+          - general
+          - latest
+          - most_liked
+          title: Content Sort
+          default: general
+        publish_time_days:
+          type: integer
+          enum:
+          - 0
+          - 1
+          - 7
+          - 180
+          title: Publish Time Days
+          default: 0
         schedule_type:
           type: string
           enum:
@@ -1218,6 +1353,25 @@ components:
             minimum: 1.0
           - type: 'null'
           title: Max Comments Per Content
+        content_sort:
+          anyOf:
+          - type: string
+            enum:
+            - general
+            - latest
+            - most_liked
+          - type: 'null'
+          title: Content Sort
+        publish_time_days:
+          anyOf:
+          - type: integer
+            enum:
+            - 0
+            - 1
+            - 7
+            - 180
+          - type: 'null'
+          title: Publish Time Days
         schedule_type:
           anyOf:
           - type: string
@@ -1281,6 +1435,12 @@ components:
         max_comments_per_content:
           type: integer
           title: Max Comments Per Content
+        content_sort:
+          type: string
+          title: Content Sort
+        publish_time_days:
+          type: integer
+          title: Publish Time Days
         schedule_type:
           type: string
           title: Schedule Type
@@ -1318,6 +1478,8 @@ components:
       - filter_rule_id
       - max_contents
       - max_comments_per_content
+      - content_sort
+      - publish_time_days
       - schedule_type
       - schedule_value
       - state
@@ -1325,6 +1487,160 @@ components:
       - created_at
       - updated_at
       title: TaskView
+    RunView:
+      properties:
+        id:
+          type: string
+          title: Id
+        task_id:
+          type: string
+          title: Task Id
+        trigger_type:
+          type: string
+          title: Trigger Type
+        status:
+          type: string
+          title: Status
+        phase:
+          type: string
+          title: Phase
+          description: queued/starting/crawling/filtering/ingesting/finalizing/completed/failed/cancelled
+        config_snapshot:
+          type: object
+          additionalProperties: true
+          title: Config Snapshot
+        counts:
+          type: object
+          additionalProperties: true
+          title: Counts
+          description: Final counters; may include semantic_error_code and semantic_error strings.
+        progress:
+          type: object
+          additionalProperties: true
+          title: Progress
+          description: staged_contents, staged_comments, stalled, and last_log_id while running.
+        error_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Code
+        safe_summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Safe Summary
+        cancel_requested:
+          type: boolean
+          title: Cancel Requested
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        started_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Started At
+        finished_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Finished At
+        last_activity_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Activity At
+      type: object
+      required:
+      - id
+      - task_id
+      - trigger_type
+      - status
+      - phase
+      - config_snapshot
+      - counts
+      - progress
+      - error_code
+      - safe_summary
+      - cancel_requested
+      - created_at
+      - started_at
+      - finished_at
+      - last_activity_at
+      title: RunView
+    AccountView:
+      properties:
+        platform:
+          type: string
+          enum:
+          - dy
+          - xhs
+          title: Platform
+        label:
+          type: string
+          title: Label
+        configured:
+          type: boolean
+          title: Configured
+        profile_mode:
+          type: string
+          enum:
+          - cdp
+          - standard
+          title: Profile Mode
+        last_login_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Login At
+        login_state:
+          type: string
+          enum:
+          - idle
+          - running
+          - succeeded
+          - failed
+          title: Login State
+        login_started_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Login Started At
+        login_error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Login Error
+      type: object
+      required:
+      - platform
+      - label
+      - configured
+      - profile_mode
+      - last_login_at
+      - login_state
+      - login_started_at
+      - login_error
+      title: AccountView
+    AccountLoginResponse:
+      properties:
+        platform:
+          type: string
+          title: Platform
+        status:
+          type: string
+          title: Status
+      type: object
+      required:
+      - platform
+      - status
+      title: AccountLoginResponse
     ValidationError:
       properties:
         loc:
