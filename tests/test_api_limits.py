@@ -6,7 +6,18 @@ from fastapi.testclient import TestClient
 from cmd_arg import parse_cmd
 from api.schemas import CrawlerStartRequest, PlatformEnum, LoginTypeEnum, CrawlerTypeEnum
 from api.services.crawler_manager import CrawlerManager
+from api.services.auth_service import require_admin
 from api.main import app
+
+
+@pytest.fixture(autouse=True)
+def authenticate_test_client():
+    app.dependency_overrides[require_admin] = lambda: "test-admin"
+    try:
+        yield
+    finally:
+        app.dependency_overrides.pop(require_admin, None)
+
 
 @pytest.mark.asyncio
 async def test_cmd_arg_crawler_max_notes_count():

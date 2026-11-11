@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -103,6 +104,10 @@ async def test_merge_rejects_corrupt_input(tmp_path):
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="uses a POSIX shell script and pgrep to verify process cleanup",
+)
 async def test_merge_kills_subprocess_when_cancelled(tmp_path, monkeypatch):
     """任务被取消（Ctrl-C / abort）时不能留下孤儿 ffmpeg 进程"""
     import media_downloader.ffmpeg as ffmpeg_module
