@@ -1,0 +1,123 @@
+# -*- coding: utf-8 -*-
+# Derived from MediaCrawler (https://github.com/NanmiCoder/MediaCrawler).
+# Licensed under NON-COMMERCIAL LEARNING LICENSE 1.1; see LICENSE.
+
+from datetime import datetime
+from typing import Literal
+from urllib.parse import urlsplit
+import re
+from zoneinfo import ZoneInfo
+
+from apscheduler.triggers.cron import CronTrigger
+from pydantic import BaseModel, Field, model_validator
+
+
+Platform = Literal["dy", "xhs"]
+SourceMode = Literal["search", "detail"]
+ScheduleType = Literal["manual", "interval", "cron"]
+
+
+def _safe_source(platform: str, mode: str, value: str) -> str:
+    candidate = value.strip()
+    if mode == "search":
+        if not candidate or len(candidate) > 100:
+            raise ValueError("Search keywords must be 1-100 characters")
+        return candidate
+    if platform == "dy" and candidate.isdigit():
+        return candidate
+    parts = urlsplit(candidate)
+    host = (parts.hostname or "").lower()
+    if parts.scheme not in {"http", "https"}:
+        raise ValueError("Content source must be an HTTP(S) URL")
+    if platform == "xhs":
+        if host not in {"xiaohongshu.com", "www.xiaohongshu.com"}:
+            raise ValueError("Xiaohongshu source must use xiaohongshu.com")
+        match = re.search(r"/explore/([^/?]+)", parts.path)
+        if not match:
+            raise ValueError("Xiaohongshu source must be a note URL")
+        return f"https://www.xiaohongshu.com/explore/{match.group(1)}"
+    if host not in {"douyin.com", "www.douyin.com", "v.douyin.com"}:
+        raise ValueError("Douyin source must use douyin.com")
+    if host == "v.douyin.com":
+        return f"https://v.douyin.com{parts.path.rstrip('/')}"
+    modal_id = dict(item.split("=", 1) for item in parts.query.split("&") if "=" in item).get("modal_id")
+    match = re.search(r"/video/(\d+)", parts.path)
+    content_id = modal_id or (match.group(1) if match else None)
+    if not content_id:
+        raise ValueError("Douyin source must identify a video")
+    return content_id
+
+
+class TaskCreate(BaseModel):
+    """Create a bounded collection task using the approved upstream modes."""
+
+    name: str = Field(min_length=1, max_length=120)
+    platform: Platform
+    source_mode: SourceMode
+    source_values: list[str] = Field(min_length=1, max_length=20)
+    include_keywords: list[str] = Field(default_factory=list, max_length=50)
+    exclude_keywords: list[str] = Field(default_factory=list, max_length=50)
+    filter_rule_id: str | None = Field(default=None, max_length=36)
+    max_contents: int = Field(default=20, ge=1, le=100)
+    max_comments_per_content: int = Field(default=100, ge=1, le=1000)
+    schedule_type: ScheduleType = "manual"
+    schedule_value: str | None = None
+
+    @model_validator(mode="after")
+    def validate_task(self):
+        self.name = self.name.strip()
+        if not self.name:
+            raise ValueError("Task name cannot be blank")
+        self.source_values = [_safe_source(self.platform, self.source_mode, item) for item in self.source_values]
+        self.include_keywords = [item.strip() for item in self.include_keywords if item.strip()]
+        self.exclude_keywords = [item.strip() for item in self.exclude_keywords if item.strip()]
+        if self.schedule_type == "manual":
+            self.schedule_value = None
+        elif self.schedule_type == "interval":
+            try:
+                interval = int(self.schedule_value or "")
+            except ValueError as exc:
+                raise ValueError("Interval must be an integer number of minutes") from exc
+            if not 60 <= interval <= 525600:
+                raise ValueError("Interval must be between 60 and 525600 minutes")
+            self.schedule_value = str(interval)
+        else:
+            try:
+                CronTrigger.from_crontab(self.schedule_value or "", timezone=ZoneInfo("Asia/Shanghai"))
+            except (ValueError, TypeError) as exc:
+                raise ValueError("Cron expression must be a valid five-field expression") from exc
+        return self
+
+
+class TaskPatch(BaseModel):
+    """Partial task update; omitted values keep their current settings."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    source_values: list[str] | None = Field(default=None, min_length=1, max_length=20)
+    include_keywords: list[str] | None = Field(default=None, max_length=50)
+    exclude_keywords: list[str] | None = Field(default=None, max_length=50)
+    filter_rule_id: str | None = Field(default=None, max_length=36)
+    max_contents: int | None = Field(default=None, ge=1, le=100)
+    max_comments_per_content: int | None = Field(default=None, ge=1, le=1000)
+    schedule_type: ScheduleType | None = None
+    schedule_value: str | None = None
+
+
+class TaskView(BaseModel):
+    id: str
+    name: str
+    platform: str
+    source_mode: str
+    source_values: list[str]
+    include_keywords: list[str]
+    exclude_keywords: list[str]
+    filter_rule_id: str | None
+    filter_rule: dict | None = None
+    max_contents: int
+    max_comments_per_content: int
+    schedule_type: str
+    schedule_value: str | None
+    state: str
+    next_run_at: datetime | None
+    created_at: datetime
+    updated_at: datetime

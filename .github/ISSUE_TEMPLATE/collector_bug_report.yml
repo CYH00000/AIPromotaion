@@ -1,0 +1,36 @@
+name: Bug report
+description: Report a reproducible problem in the research application or its documentation.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include real comments, account identifiers, cookies, tokens, screenshots containing secrets, or model API keys.
+  - type: input
+    id: version
+    attributes:
+      label: Project revision
+      description: Include the project commit and, if relevant, the MediaCrawler upstream SHA.
+      placeholder: Commit SHA
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Use synthetic or redacted data only.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs
+      description: Remove user data, cookies, tokens, request headers, and API keys.
+    validations:
+      required: false

@@ -1,0 +1,24 @@
+name: codex-project-dev
+
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_NAME:-media_crawler}
+      POSTGRES_USER: ${POSTGRES_DB_USER:?Copy .env.example to .env and set POSTGRES_DB_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_DB_PWD:?Set POSTGRES_DB_PWD in .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_DB_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    stop_grace_period: 30s
+
+volumes:
+  postgres_data:

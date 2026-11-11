@@ -1,0 +1,13 @@
+{
+  "title": "Usage Notice",
+  "warning": "Review the project license and usage boundaries",
+  "content": {
+    "line1": "This project is limited to personal learning and non-commercial research",
+    "line2": "The root license governs use of the collection code",
+    "line3": "Follow the target platform rules and applicable local laws",
+    "line4": "Stop on platform verification or rate limits; do not bypass access controls"
+  },
+  "license": "View Collection Code License",
+  "confirm": "I understand and agree to the above terms",
+  "decline": "Disagree, Exit"
+}

@@ -1,0 +1,29 @@
+name: Feature request
+description: Propose an in-scope improvement to the approved research tool.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: Requests must remain within the approved personal, non-commercial research and platform-access boundaries.
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: What task are you trying to complete?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the desired outcome and acceptance criteria.
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This does not request commercial lead generation, automated outreach, content publishing, or bypassing platform controls.
+          required: true
