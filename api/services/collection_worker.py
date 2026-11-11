@@ -23,6 +23,19 @@ from database.collector_models import CollectionRun, CollectionTask, utc_now
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 STALL_TIMEOUT_SECONDS = int(os.getenv("COLLECTOR_STALL_TIMEOUT_SECONDS", "180"))
+SEMANTIC_ERROR_LABELS = {
+    "config": "配置错误",
+    "redirect": "重定向被拒绝",
+    "response_too_large": "响应过大",
+    "timeout": "请求超时",
+    "rate_limit": "触发限流",
+    "http_5xx": "服务端异常",
+    "http_error": "请求被拒绝",
+    "network": "网络异常",
+    "invalid_json": "返回格式错误",
+    "incomplete": "返回结果不完整",
+    "model_error": "模型错误",
+}
 
 
 class CollectionWorker:
@@ -225,7 +238,10 @@ class CollectionWorker:
                 if counts.get("semantic_failed", 0):
                     status = "partial"
                     error_code = "semantic_evaluation_failed"
-                    summary = "部分评论未能完成智能语义判断，未保存。"
+                    reason = SEMANTIC_ERROR_LABELS.get(
+                        str(counts.get("semantic_error_code", "model_error")), "模型错误"
+                    )
+                    summary = f"部分评论未能完成智能语义判断，未保存。失败类型：{reason}"
                 else:
                     status, error_code, summary = "succeeded", None, "采集完成。"
             elif counts["matched"]:

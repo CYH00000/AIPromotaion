@@ -112,6 +112,43 @@ def _read_jsonl(directory: Path, item_type: str) -> list[dict]:
     return records
 
 
+async def evaluate_candidates(candidates: list[dict], filter_rule: dict | None) -> dict:
+    """Evaluate semantic candidates in batches; isolate a failed batch from later batches."""
+    counts = {
+        "semantic_matched": 0,
+        "semantic_filtered": 0,
+        "semantic_failed": 0,
+    }
+    if not filter_rule:
+        return counts
+
+    for start in range(0, len(candidates), 20):
+        batch = candidates[start:start + 20]
+        model_input = [
+            {"index": index, "text": item["normalized"]["body"][:2000]}
+            for index, item in enumerate(batch)
+        ]
+        try:
+            decisions = await evaluate_comment_batch(filter_rule, model_input)
+        except (FilterModelError, ValueError) as exc:
+            counts["semantic_failed"] += len(batch)
+            if "semantic_error_code" not in counts:
+                counts["semantic_error_code"] = getattr(exc, "code", "model_error")
+                counts["semantic_error"] = str(exc)[:240]
+            for item in batch:
+                item["semantic_decision"] = None
+            continue
+        by_index = {decision["index"]: decision for decision in decisions}
+        for index, item in enumerate(batch):
+            decision = by_index[index]
+            item["semantic_decision"] = decision
+            if decision["matched"]:
+                counts["semantic_matched"] += 1
+            else:
+                counts["semantic_filtered"] += 1
+    return counts
+
+
 async def ingest_staging_directory(run_id: str, platform: str, task: dict, directory: Path) -> dict:
     """Filter MediaCrawler JSONL output and persist only matched comments."""
     content_records = _read_jsonl(directory, "contents")
@@ -156,29 +193,9 @@ async def ingest_staging_directory(run_id: str, platform: str, task: dict, direc
         )
 
     if filter_rule:
-        for start in range(0, len(candidates), 20):
-            batch = candidates[start:start + 20]
-            model_input = [
-                {"index": index, "text": item["normalized"]["body"][:2000]}
-                for index, item in enumerate(batch)
-            ]
-            try:
-                decisions = await evaluate_comment_batch(filter_rule, model_input)
-            except (FilterModelError, ValueError):
-                remaining = candidates[start:]
-                counts["semantic_failed"] += len(remaining)
-                for item in remaining:
-                    item["semantic_decision"] = None
-                break
-            by_index = {decision["index"]: decision for decision in decisions}
-            for index, item in enumerate(batch):
-                decision = by_index[index]
-                item["semantic_decision"] = decision
-                if decision["matched"]:
-                    counts["semantic_matched"] += 1
-                else:
-                    counts["semantic_filtered"] += 1
-                    counts["filtered"] += 1
+        semantic_counts = await evaluate_candidates(candidates, filter_rule)
+        counts["filtered"] += semantic_counts["semantic_filtered"]
+        counts.update(semantic_counts)
 
     async with collector_session() as session:
         for item in candidates:

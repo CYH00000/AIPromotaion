@@ -17,7 +17,13 @@ import {
   type CollectionRun,
   type CrawlerLog,
 } from '@/lib/collectorApi'
-import { elapsedLabel, localizeSummary, relativeTime, runPhaseLabel } from '@/lib/runFormat'
+import {
+  elapsedLabel,
+  localizeSummary,
+  relativeTime,
+  runPhaseLabel,
+  semanticErrorLabel,
+} from '@/lib/runFormat'
 
 interface RunDetailDialogProps {
   run: CollectionRun | null
@@ -131,6 +137,15 @@ export function RunDetailDialog({ run, onClose, onChanged }: RunDetailDialogProp
                 </p>
               </div>
             </div>
+
+            {Number(run.counts.semantic_failed ?? 0) > 0 && (
+              <p className="rounded-md border border-cyber-neon-orange/40 bg-cyber-neon-orange/10 px-3 py-2 text-xs text-cyber-neon-orange">
+                智能筛选失败 {run.counts.semantic_failed} 条
+                {run.counts.semantic_error_code
+                  ? `（${semanticErrorLabel(run.counts.semantic_error_code)}）`
+                  : ''}
+              </p>
+            )}
 
             {active && (
               <p className="rounded-md border border-cyber-neon-cyan/30 bg-cyber-neon-cyan/5 px-3 py-2 text-xs leading-5 text-cyber-text-secondary">

@@ -23,6 +23,25 @@ const SUMMARY_LABELS: Record<string, string> = {
   'Another collector process is running.': '已有采集进程正在运行。',
 }
 
+const SEMANTIC_ERROR_LABELS: Record<string, string> = {
+  config: '配置错误',
+  redirect: '重定向被拒绝',
+  response_too_large: '响应过大',
+  timeout: '请求超时',
+  rate_limit: '触发限流',
+  http_5xx: '服务端异常',
+  http_error: '请求被拒绝',
+  network: '网络异常',
+  invalid_json: '返回格式错误',
+  incomplete: '返回结果不完整',
+  model_error: '模型错误',
+}
+
+export function semanticErrorLabel(code: string | number | undefined): string {
+  if (code === undefined) return ''
+  return SEMANTIC_ERROR_LABELS[String(code)] ?? '模型错误'
+}
+
 export function localizeSummary(summary: string | null | undefined): string {
   if (!summary) return ''
   return SUMMARY_LABELS[summary] ?? summary

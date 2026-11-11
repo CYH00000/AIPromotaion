@@ -47,7 +47,7 @@ export interface CollectionRun {
   trigger_type: string
   status: string
   phase: string
-  counts: Record<string, number>
+  counts: Record<string, number | string>
   progress: {
     staged_contents?: number
     staged_comments?: number
