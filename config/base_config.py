@@ -28,6 +28,7 @@ KEYWORDS = "编程副业,编程兼职"  # Keyword search configuration, separate
 LOGIN_TYPE = "qrcode"  # qrcode or phone or cookie
 LOGIN_ONLY = False  # When true, complete login and exit without crawling.
 COOKIES = ""
+CONTENT_SORT = "general"  # general | latest | most_liked
 CRAWLER_TYPE = (
     "search"  # Crawling type, search (keyword search) | detail (post details) | creator (creator homepage data)
 )

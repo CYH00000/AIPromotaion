@@ -45,3 +45,28 @@ def test_manual_run_allowed_for_enabled_and_paused_tasks():
     assert manual_run_allowed("enabled") is True
     assert manual_run_allowed("paused") is True
     assert manual_run_allowed("disabled") is False
+
+
+def test_task_contract_accepts_content_sort_and_publish_window():
+    task = TaskCreate(
+        name="latest weekly",
+        platform="dy",
+        source_mode="search",
+        source_values=["软件开发"],
+        content_sort="latest",
+        publish_time_days=7,
+    )
+
+    assert task.content_sort == "latest"
+    assert task.publish_time_days == 7
+
+
+def test_task_contract_rejects_invalid_content_sort():
+    with pytest.raises(ValidationError):
+        TaskCreate(
+            name="invalid sort",
+            platform="dy",
+            source_mode="search",
+            source_values=["软件开发"],
+            content_sort="newest",
+        )

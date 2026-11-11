@@ -41,6 +41,7 @@ from store import xhs as xhs_store
 from tools import utils
 from tools.cdp_browser import CDPBrowserManager
 from tools.collection_limits import limit_page_items
+from tools.time_util import is_within_publish_window, publish_cutoff
 from var import crawler_type_var, source_keyword_var
 
 from . import media as xhs_media
@@ -54,6 +55,13 @@ from .exception import (
 from .field import SearchSortType
 from .help import parse_note_info_from_note_url, parse_creator_info_from_url, get_search_id
 from .login import XiaoHongShuLogin
+
+
+def _content_sort_type(value: str) -> SearchSortType:
+    return {
+        "latest": SearchSortType.LATEST,
+        "most_liked": SearchSortType.MOST_POPULAR,
+    }.get(value, SearchSortType.GENERAL)
 
 
 class XiaoHongShuCrawler(AbstractCrawler):
@@ -164,7 +172,7 @@ class XiaoHongShuCrawler(AbstractCrawler):
                         keyword=keyword,
                         search_id=search_id,
                         page=page,
-                        sort=(SearchSortType(config.SORT_TYPE) if config.SORT_TYPE != "" else SearchSortType.GENERAL),
+                        sort=_content_sort_type(config.CONTENT_SORT),
                     )
                     if os.getenv("COLLECTOR_PROJECT_MODE") == "1":
                         utils.logger.info(
@@ -190,8 +198,11 @@ class XiaoHongShuCrawler(AbstractCrawler):
                         ) for post_item in selected_items
                     ]
                     note_details = await asyncio.gather(*task_list)
+                    cutoff = publish_cutoff(config.PUBLISH_TIME_TYPE)
                     for note_detail in note_details:
                         if note_detail:
+                            if not is_within_publish_window(note_detail.get("time"), cutoff):
+                                continue
                             await xhs_store.update_xhs_note(note_detail)
                             await self.download_media(note_detail)
                             note_id = note_detail.get("note_id")

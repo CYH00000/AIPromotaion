@@ -33,6 +33,8 @@ export interface CollectionTask {
   filter_rule: FilterRule | null
   max_contents: number
   max_comments_per_content: number
+  content_sort: 'general' | 'latest' | 'most_liked'
+  publish_time_days: 0 | 1 | 7 | 180
   schedule_type: 'manual' | 'interval' | 'cron'
   schedule_value: string | null
   state: TaskState
@@ -108,6 +110,8 @@ export interface TaskPayload {
   filter_rule_id: string | null
   max_contents: number
   max_comments_per_content: number
+  content_sort: 'general' | 'latest' | 'most_liked'
+  publish_time_days: 0 | 1 | 7 | 180
   schedule_type: 'manual' | 'interval' | 'cron'
   schedule_value: string | null
 }

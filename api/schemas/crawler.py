@@ -76,6 +76,8 @@ class CrawlerStartRequest(BaseModel):
     cookies: str = ""
     headless: bool = False
     login_only: bool = False
+    content_sort: str = "general"
+    publish_time_days: int = 0
     max_notes_count: Optional[int] = Field(default=None, ge=1, le=MAX_API_LIMIT_COUNT)
     max_comments_count: Optional[int] = Field(default=None, ge=1, le=MAX_API_LIMIT_COUNT)
 

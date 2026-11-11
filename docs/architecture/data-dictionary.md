@@ -6,7 +6,7 @@
 
 | 表 | 关键字段 | 约束与用途 |
 |---|---|---|
-| `collector_tasks` | 平台、来源模式/值、包含/排除关键词、内容/评论上限、计划、状态、下次执行时间 | 任务停用只停止未来计划，不删除运行和评论。URL 在保存前去掉查询令牌。 |
+| `collector_tasks` | 平台、来源模式/值、包含/排除关键词、内容/评论上限、内容排序、发布时间范围、计划、状态、下次执行时间 | 关键词任务可选择综合/最新/最多点赞排序，以及不限/一天/一周/半年发布时间；指定链接模式按链接采集。任务停用只停止未来计划，不删除运行和评论。URL 在保存前去掉查询令牌。 |
 | `collector_filter_rules` | 规则 ID、谱系 ID/版本、父版本、自然语言意图、受限 JSON 定义、模型名、draft/approved 状态、批准时间 | 草稿不能绑定任务；批准后字段只读。编辑产生新的子版本。 |
 | `collector_runs` | `task_id`, `trigger_type`, `status`, `config_snapshot`, `counts`, `error_code`, `safe_summary` | 每次手动或计划执行一行；任务配置在开始时快照；运行状态包括 queued/running/succeeded/partial/failed/cancelled/interrupted。 |
 | `collector_comments` | 平台评论 ID、内容 ID/标题/链接、正文、评论时间、命中关键词、作者三字段 | 唯一键 `(platform, external_comment_id)`；无稳定平台评论 ID 的记录跳过。作者字段只包含平台用户 ID、昵称和主页 URL。 |

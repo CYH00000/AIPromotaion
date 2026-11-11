@@ -44,9 +44,16 @@ from var import crawler_type_var, source_keyword_var
 from . import media as douyin_media
 from .client import DouYinClient
 from .exception import DataFetchError
-from .field import PublishTimeType
+from .field import PublishTimeType, SearchSortType
 from .help import parse_video_info_from_url, parse_creator_info_from_url
 from .login import DouYinLogin
+
+
+def _content_sort_type(value: str) -> SearchSortType:
+    return {
+        "latest": SearchSortType.LATEST,
+        "most_liked": SearchSortType.MOST_LIKE,
+    }.get(value, SearchSortType.GENERAL)
 
 
 class DouYinCrawler(AbstractCrawler):
@@ -153,6 +160,7 @@ class DouYinCrawler(AbstractCrawler):
                     posts_res = await self.dy_client.search_info_by_keyword(
                         keyword=keyword,
                         offset=page * dy_limit_count - dy_limit_count,
+                        sort_type=_content_sort_type(config.CONTENT_SORT),
                         publish_time=PublishTimeType(config.PUBLISH_TIME_TYPE),
                         search_id=dy_search_id,
                     )

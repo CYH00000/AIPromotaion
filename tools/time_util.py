@@ -98,6 +98,26 @@ def get_unix_timestamp():
     return int(time.time())
 
 
+def publish_cutoff(days: int) -> int:
+    """Return the oldest allowed publish timestamp for a day window."""
+    if days <= 0:
+        return 0
+    return int(time.time()) - int(days) * 86400
+
+
+def is_within_publish_window(timestamp, cutoff: int) -> bool:
+    """Return whether a platform publish timestamp is inside the cutoff window."""
+    if cutoff <= 0:
+        return True
+    try:
+        value = int(timestamp or 0)
+    except (TypeError, ValueError):
+        return False
+    if value > 1_000_000_000_000:
+        value //= 1000
+    return value >= cutoff
+
+
 def rfc2822_to_china_datetime(rfc2822_time):
     # Define RFC 2822 format
     rfc2822_format = "%a %b %d %H:%M:%S %z %Y"

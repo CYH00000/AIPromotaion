@@ -61,6 +61,8 @@ def create_run(task: CollectionTask, trigger_type: str) -> CollectionRun:
         filter_rule_id=task.filter_rule_id,
         max_contents=task.max_contents,
         max_comments_per_content=task.max_comments_per_content,
+        content_sort=task.content_sort,
+        publish_time_days=task.publish_time_days,
         schedule_type=task.schedule_type,
         schedule_value=task.schedule_value,
     )

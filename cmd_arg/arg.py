@@ -190,6 +190,22 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
                 rich_help_panel="Basic Configuration",
             ),
         ] = config.START_PAGE,
+        content_sort: Annotated[
+            str,
+            typer.Option(
+                "--content_sort",
+                help="Content sort: general | latest | most_liked",
+                rich_help_panel="Basic Configuration",
+            ),
+        ] = config.CONTENT_SORT,
+        publish_time_days: Annotated[
+            int,
+            typer.Option(
+                "--publish_time_days",
+                help="Publish window in days: 0 unlimited | 1 one day | 7 one week | 180 six months",
+                rich_help_panel="Basic Configuration",
+            ),
+        ] = config.PUBLISH_TIME_TYPE,
         keywords: Annotated[
             str,
             typer.Option(
@@ -370,6 +386,8 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
         config.LOGIN_TYPE = lt.value
         config.CRAWLER_TYPE = crawler_type.value
         config.START_PAGE = start
+        config.CONTENT_SORT = content_sort if content_sort in {"general", "latest", "most_liked"} else "general"
+        config.PUBLISH_TIME_TYPE = publish_time_days if publish_time_days in {0, 1, 7, 180} else 0
         config.KEYWORDS = keywords
         config.ENABLE_GET_COMMENTS = enable_comment
         config.ENABLE_GET_SUB_COMMENTS = enable_sub_comment
@@ -428,6 +446,8 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
             lt=config.LOGIN_TYPE,
             type=config.CRAWLER_TYPE,
             start=config.START_PAGE,
+            content_sort=config.CONTENT_SORT,
+            publish_time_days=config.PUBLISH_TIME_TYPE,
             keywords=config.KEYWORDS,
             get_comment=config.ENABLE_GET_COMMENTS,
             get_sub_comment=config.ENABLE_GET_SUB_COMMENTS,

@@ -236,6 +236,9 @@ class CrawlerManager:
         if config.start_page != 1:
             cmd.extend(["--start", str(config.start_page)])
 
+        cmd.extend(["--content_sort", config.content_sort])
+        cmd.extend(["--publish_time_days", str(config.publish_time_days)])
+
         cmd.extend(["--get_comment", "true" if config.enable_comments else "false"])
         cmd.extend(["--get_sub_comment", "true" if config.enable_sub_comments else "false"])
         cmd.extend(["--get_media", "true" if config.enable_media else "false"])

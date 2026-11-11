@@ -15,6 +15,8 @@ from pydantic import BaseModel, Field, model_validator
 Platform = Literal["dy", "xhs"]
 SourceMode = Literal["search", "detail"]
 ScheduleType = Literal["manual", "interval", "cron"]
+ContentSort = Literal["general", "latest", "most_liked"]
+PublishTimeDays = Literal[0, 1, 7, 180]
 
 
 def _safe_source(platform: str, mode: str, value: str) -> str:
@@ -60,6 +62,8 @@ class TaskCreate(BaseModel):
     filter_rule_id: str | None = Field(default=None, max_length=36)
     max_contents: int = Field(default=20, ge=1, le=100)
     max_comments_per_content: int = Field(default=100, ge=1, le=1000)
+    content_sort: ContentSort = "general"
+    publish_time_days: PublishTimeDays = 0
     schedule_type: ScheduleType = "manual"
     schedule_value: str | None = None
 
@@ -99,6 +103,8 @@ class TaskPatch(BaseModel):
     filter_rule_id: str | None = Field(default=None, max_length=36)
     max_contents: int | None = Field(default=None, ge=1, le=100)
     max_comments_per_content: int | None = Field(default=None, ge=1, le=1000)
+    content_sort: ContentSort | None = None
+    publish_time_days: PublishTimeDays | None = None
     schedule_type: ScheduleType | None = None
     schedule_value: str | None = None
 
@@ -115,6 +121,8 @@ class TaskView(BaseModel):
     filter_rule: dict | None = None
     max_contents: int
     max_comments_per_content: int
+    content_sort: str
+    publish_time_days: int
     schedule_type: str
     schedule_value: str | None
     state: str

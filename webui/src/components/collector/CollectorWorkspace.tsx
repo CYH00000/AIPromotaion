@@ -16,6 +16,7 @@ import { TaskFormDialog } from './TaskFormDialog'
 import { AccountsPanel } from './AccountsPanel'
 import { RunDetailDialog } from './RunDetailDialog'
 import { localizeSummary, relativeTime, runPhaseLabel } from '@/lib/runFormat'
+import { contentSortLabel, publishWindowLabel } from '@/lib/taskFormat'
 
 type WorkspaceTab = 'tasks' | 'comments' | 'accounts'
 
@@ -195,6 +196,7 @@ export function CollectorWorkspace({ username, onLogout }: { username: string; o
                         <td className="max-w-[320px] px-4 py-4">
                           <p className="line-clamp-2 break-all text-xs text-cyber-text-secondary">{task.source_values.join('、')}</p>
                           <div className="mt-2 flex flex-wrap gap-1">{task.include_keywords.map((word) => <Badge key={`i-${word}`}>{word}</Badge>)}{task.exclude_keywords.map((word) => <Badge key={`e-${word}`} variant="destructive">排除 {word}</Badge>)}{!task.include_keywords.length && !task.exclude_keywords.length && <span className="text-xs text-cyber-text-muted">未设置关键词筛选</span>}</div>
+                          {task.source_mode === 'search' && <p className="mt-2 text-xs text-cyber-text-muted">排序：{contentSortLabel(task.content_sort)} · {publishWindowLabel(task.publish_time_days)}</p>}
                           {task.filter_rule && <p className="mt-2 text-xs leading-5 text-cyber-neon-cyan">语义规则 v{task.filter_rule.version}：{task.filter_rule.definition.summary}</p>}
                         </td>
                         <td className="px-4 py-4 text-xs text-cyber-text-secondary">

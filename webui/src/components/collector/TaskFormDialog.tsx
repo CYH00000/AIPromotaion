@@ -10,6 +10,10 @@ import {
   type PlatformId,
   type TaskPayload,
 } from '@/lib/collectorApi'
+import {
+  CONTENT_SORT_OPTIONS,
+  PUBLISH_WINDOW_OPTIONS,
+} from '@/lib/taskFormat'
 
 interface TaskFormDialogProps {
   task: CollectionTask | null
@@ -32,6 +36,8 @@ export function TaskFormDialog({ task, onClose, onSaved }: TaskFormDialogProps) 
   const [excludeKeywords, setExcludeKeywords] = useState(task?.exclude_keywords.join('\n') ?? '')
   const [maxContents, setMaxContents] = useState(task?.max_contents ?? 20)
   const [maxComments, setMaxComments] = useState(task?.max_comments_per_content ?? 100)
+  const [contentSort, setContentSort] = useState<CollectionTask['content_sort']>(task?.content_sort ?? 'general')
+  const [publishTimeDays, setPublishTimeDays] = useState<CollectionTask['publish_time_days']>(task?.publish_time_days ?? 0)
   const [scheduleType, setScheduleType] = useState<TaskPayload['schedule_type']>(task?.schedule_type ?? 'manual')
   const [scheduleValue, setScheduleValue] = useState(task?.schedule_value ?? '')
   const [semanticIntent, setSemanticIntent] = useState(task?.filter_rule?.intent ?? '')
@@ -54,6 +60,8 @@ export function TaskFormDialog({ task, onClose, onSaved }: TaskFormDialogProps) 
       setExcludeKeywords(task.exclude_keywords.join('\n'))
       setMaxContents(task.max_contents)
       setMaxComments(task.max_comments_per_content)
+      setContentSort(task.content_sort)
+      setPublishTimeDays(task.publish_time_days)
       setScheduleType(task.schedule_type)
       setScheduleValue(task.schedule_value ?? '')
       setSemanticIntent(task.filter_rule?.intent ?? '')
@@ -120,6 +128,8 @@ export function TaskFormDialog({ task, onClose, onSaved }: TaskFormDialogProps) 
       filter_rule_id: filterRule?.id ?? null,
       max_contents: maxContents,
       max_comments_per_content: maxComments,
+      content_sort: sourceMode === 'search' ? contentSort : 'general',
+      publish_time_days: sourceMode === 'search' ? publishTimeDays : 0,
       schedule_type: scheduleType,
       schedule_value: scheduleType === 'manual' ? null : scheduleValue.trim(),
     }
@@ -172,6 +182,24 @@ export function TaskFormDialog({ task, onClose, onSaved }: TaskFormDialogProps) 
             {sourceMode === 'search' ? '关键词' : '内容链接'}
             <textarea className={`${fieldClass} min-h-24 resize-y`} value={sources} onChange={(event) => setSources(event.target.value)} required placeholder={sourceMode === 'search' ? '每行一个关键词' : '每行一个内容链接'} />
           </label>
+          {sourceMode === 'search' ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block space-y-1.5 text-sm text-cyber-text-secondary">
+                内容排序
+                <select className={fieldClass} value={contentSort} onChange={(event) => setContentSort(event.target.value as CollectionTask['content_sort'])}>
+                  {CONTENT_SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
+              <label className="block space-y-1.5 text-sm text-cyber-text-secondary">
+                发布时间
+                <select className={fieldClass} value={publishTimeDays} onChange={(event) => setPublishTimeDays(Number(event.target.value) as CollectionTask['publish_time_days'])}>
+                  {PUBLISH_WINDOW_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
+            </div>
+          ) : (
+            <p className="text-xs leading-5 text-cyber-text-muted">指定链接模式按你提供的链接采集，排序和时间筛选不生效。</p>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block space-y-1.5 text-sm text-cyber-text-secondary">
               包含词（任意命中）

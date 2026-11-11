@@ -63,6 +63,8 @@ class CollectionTask(CollectorBase):
     filter_rule: Mapped[CollectionFilterRule | None] = relationship(back_populates="tasks", lazy="joined")
     max_contents: Mapped[int] = mapped_column(Integer, nullable=False, default=20)
     max_comments_per_content: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    content_sort: Mapped[str] = mapped_column(String(16), nullable=False, default="general")
+    publish_time_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     schedule_type: Mapped[str] = mapped_column(String(12), nullable=False, default="manual")
     schedule_value: Mapped[str | None] = mapped_column(String(120))
     state: Mapped[str] = mapped_column(String(12), nullable=False, default="enabled")

@@ -205,6 +205,8 @@ class CollectionWorker:
                 headless=False,
                 max_notes_count=config["max_contents"],
                 max_comments_count=config["max_comments_per_content"],
+                content_sort=config.get("content_sort", "general"),
+                publish_time_days=config.get("publish_time_days", 0),
             )
 
             started = await crawler_manager.start(
