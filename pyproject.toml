@@ -1,11 +1,11 @@
 [project]
-name = "mediacrawler"
-author = "程序员阿江-Relakkes <relakkes@gmail.com>"
+name = "comment-collection-workspace"
 version = "0.1.0"
-description = "A social media crawler project, support Xiaohongshu, Weibo, Zhihu, Bilibili, Douyin, BaiduTieBa etc."
+description = "A local workspace for non-commercial Douyin and Xiaohongshu comment research."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "apscheduler>=3.11.3,<4.0.0",
     "aiofiles~=23.2.1",
     "aiomysql==0.2.0",
     "aiosqlite>=0.21.0",
@@ -41,7 +41,3 @@ dependencies = [
     "asyncpg>=0.31.0",
     "xhshow>=0.2.0",
 ]
-
-[[tool.uv.index]]
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-default = true

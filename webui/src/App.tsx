@@ -1,19 +1,35 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Toaster } from 'sonner'
 import { Sidebar } from '@/components/layout/Sidebar'
-import { MainContent } from '@/components/layout/MainContent'
-import { AuthorFooter } from '@/components/layout/AuthorFooter'
-import { CrawlerConfigPanel } from '@/components/config/CrawlerConfigPanel'
 import { EnvironmentCheck, isEnvChecked } from '@/components/env/EnvironmentCheck'
 import { LicenseDisclaimer, isLicenseAccepted } from '@/components/license/LicenseDisclaimer'
+import { CollectorWorkspace } from '@/components/collector/CollectorWorkspace'
+import { LoginScreen } from '@/components/collector/LoginScreen'
+import { authApi } from '@/lib/collectorApi'
 
 function App() {
+  const [authChecked, setAuthChecked] = useState(false)
+  const [username, setUsername] = useState('')
   // Initialize by checking localStorage if license has been accepted
   const [licenseAccepted, setLicenseAccepted] = useState(() => isLicenseAccepted())
   // Initialize by checking localStorage if env check has passed
   const [envChecked, setEnvChecked] = useState(() => isEnvChecked())
   // State for showing disclaimer manually
   const [showDisclaimer, setShowDisclaimer] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    authApi.me()
+      .then((user) => { if (active) setUsername(user.username) })
+      .catch(() => { if (active) setUsername('') })
+      .finally(() => { if (active) setAuthChecked(true) })
+    const onUnauthorized = () => setUsername('')
+    window.addEventListener('collector:unauthorized', onUnauthorized)
+    return () => {
+      active = false
+      window.removeEventListener('collector:unauthorized', onUnauthorized)
+    }
+  }, [])
 
   const handleEnvCheckComplete = () => {
     setEnvChecked(true)
@@ -27,6 +43,25 @@ function App() {
   const handleShowDisclaimer = () => {
     setShowDisclaimer(true)
   }
+
+  const handleAuthenticated = async () => {
+    const user = await authApi.me()
+    setUsername(user.username)
+  }
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout()
+    } finally {
+      setUsername('')
+    }
+  }
+
+  if (!authChecked) {
+    return <div className="flex min-h-screen items-center justify-center bg-cyber-bg-primary text-sm text-cyber-text-muted">正在检查登录状态…</div>
+  }
+
+  if (!username) return <LoginScreen onAuthenticated={() => { void handleAuthenticated() }} />
 
   return (
     <div className="flex flex-col h-screen cyber-grid overflow-hidden relative">
@@ -43,19 +78,7 @@ function App() {
       {/* Header Bar */}
       <Sidebar onShowDisclaimer={handleShowDisclaimer} />
 
-      {/* Main Area */}
-      <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden min-h-0">
-        {/* Config Panel - Primary Action Area (Always Expanded) */}
-        <div className="flex-shrink-0">
-          <CrawlerConfigPanel />
-        </div>
-
-        {/* Console - Collapsible Terminal */}
-        <MainContent />
-      </div>
-
-      {/* Author Footer */}
-      <AuthorFooter />
+      <CollectorWorkspace username={username} onLogout={handleLogout} />
 
       {/* Toast notifications - Theme-aware style */}
       <Toaster

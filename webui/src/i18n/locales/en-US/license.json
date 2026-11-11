@@ -1,21 +1,13 @@
 {
   "title": "Usage Notice",
-  "warning": "Please read the following terms carefully",
+  "warning": "Review the project license and usage boundaries",
   "content": {
-    "line1": "This project is for personal learning and research purposes only",
-    "line2": "Commercial use or profit-making activities are strictly prohibited",
-    "line3": "By using this project, you agree to comply with all applicable laws",
-    "line4": "Users bear full responsibility for any consequences of misuse"
+    "line1": "This project is limited to personal learning and non-commercial research",
+    "line2": "The root license governs use of the collection code",
+    "line3": "Follow the target platform rules and applicable local laws",
+    "line4": "Stop on platform verification or rate limits; do not bypass access controls"
   },
-  "license": "View Full License",
-  "github": "Visit GitHub Repository",
+  "license": "View Collection Code License",
   "confirm": "I understand and agree to the above terms",
-  "decline": "Disagree, Exit",
-  "author": {
-    "name": "Relakkes (阿江)",
-    "tagline": "40K+ Star Open Source Author",
-    "description": "Author of MediaCrawler (40K stars), focused on crawler tech and AI Agent knowledge sharing",
-    "support": "If you find this project helpful, please follow the author on social media",
-    "slogan": "Open source is hard, please star ⭐"
-  }
+  "decline": "Disagree, Exit"
 }

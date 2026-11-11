@@ -184,3 +184,5 @@ debug_tools
 
 database/*.db
 .omx/
+# Local development bootstrap tools
+.tools/

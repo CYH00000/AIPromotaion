@@ -1,1053 +1,1348 @@
 openapi: 3.1.0
 info:
-  title: Douyin and Xiaohongshu Comment Collector API
+  title: MediaCrawler WebUI API
+  description: Comment collection management API
   version: 0.1.0
-  description: >-
-    Contract for the single-administrator research application. All timestamps
-    are UTC. Platform identifiers are opaque strings. Business routes require
-    a session cookie; state-changing requests require the CSRF token returned
-    by GET /api/auth/csrf. This contract does not expose credentials or raw
-    platform session data.
-servers:
-  - url: /
-    description: Same-origin deployment behind the application reverse proxy
-tags:
-  - name: Health
-  - name: Authentication
-  - name: Accounts
-  - name: Settings
-  - name: Tasks
-  - name: Runs
-  - name: Comments
-  - name: Filter rules
-  - name: Exports
 paths:
-  /health/live:
-    get:
-      tags: [Health]
-      operationId: liveProbe
-      summary: Process liveness probe
-      security: []
+  /api/crawler/start:
+    post:
+      tags:
+      - crawler
+      summary: Start Crawler
+      description: Start crawler task
+      operationId: start_crawler_api_crawler_start_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrawlerStartRequest'
+        required: true
       responses:
         '200':
-          description: Process is alive
+          description: Successful Response
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Probe'}
-  /health/ready:
-    get:
-      tags: [Health]
-      operationId: readyProbe
-      summary: Readiness probe
-      security: []
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/crawler/stop:
+    post:
+      tags:
+      - crawler
+      summary: Stop Crawler
+      description: Stop crawler task
+      operationId: stop_crawler_api_crawler_stop_post
       responses:
         '200':
-          description: Required dependencies are ready
+          description: Successful Response
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Probe'}
-        '503':
-          description: A required dependency is unavailable
+              schema: {}
+  /api/crawler/status:
+    get:
+      tags:
+      - crawler
+      summary: Get Crawler Status
+      description: Get crawler status
+      operationId: get_crawler_status_api_crawler_status_get
+      responses:
+        '200':
+          description: Successful Response
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Error'}
+              schema:
+                $ref: '#/components/schemas/CrawlerStatusResponse'
+  /api/crawler/logs:
+    get:
+      tags:
+      - crawler
+      summary: Get Logs
+      description: Get recent logs
+      operationId: get_logs_api_crawler_logs_get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/data/files:
+    get:
+      tags:
+      - data
+      summary: List Data Files
+      description: Get data file list
+      operationId: list_data_files_api_data_files_get
+      parameters:
+      - name: platform
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Platform
+      - name: file_type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: File Type
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/data/files/{file_path}:
+    get:
+      tags:
+      - data
+      summary: Get File Content
+      description: Get file content or preview
+      operationId: get_file_content_api_data_files__file_path__get
+      parameters:
+      - name: file_path
+        in: path
+        required: true
+        schema:
+          type: string
+          title: File Path
+      - name: preview
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          title: Preview
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/data/download/{file_path}:
+    get:
+      tags:
+      - data
+      summary: Download File
+      description: Download file
+      operationId: download_file_api_data_download__file_path__get
+      parameters:
+      - name: file_path
+        in: path
+        required: true
+        schema:
+          type: string
+          title: File Path
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/data/stats:
+    get:
+      tags:
+      - data
+      summary: Get Data Stats
+      description: Get data statistics
+      operationId: get_data_stats_api_data_stats_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /api/auth/csrf:
     get:
-      tags: [Authentication]
-      operationId: getCsrfToken
-      summary: Obtain a CSRF token for the current browser session
-      security: []
+      tags:
+      - authentication
+      summary: Get Csrf
+      operationId: get_csrf_api_auth_csrf_get
       responses:
         '200':
-          description: CSRF token; a short-lived session cookie may also be set
+          description: Successful Response
           content:
             application/json:
-              schema:
-                type: object
-                required: [csrf_token]
-                properties:
-                  csrf_token: {type: string}
-          headers:
-            Set-Cookie:
-              schema: {type: string}
-              description: Secure, HttpOnly, SameSite cookie where applicable.
+              schema: {}
   /api/auth/login:
     post:
-      tags: [Authentication]
-      operationId: login
-      summary: Sign in the single administrator
-      security: []
-      parameters:
-        - {$ref: '#/components/parameters/CsrfHeader'}
+      tags:
+      - authentication
+      summary: Login
+      operationId: login_api_auth_login_post
       requestBody:
-        required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/LoginRequest'}
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
       responses:
         '200':
-          description: Authenticated; session cookie is set and never returned in JSON
-          headers:
-            Set-Cookie: {schema: {type: string}}
+          description: Successful Response
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/SessionUser'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '429': {$ref: '#/components/responses/RateLimited'}
-        '422': {$ref: '#/components/responses/ValidationError'}
-  /api/auth/logout:
-    post:
-      tags: [Authentication]
-      operationId: logout
-      summary: Revoke the current session
-      security: [{sessionCookie: []}]
-      parameters:
-        - {$ref: '#/components/parameters/CsrfHeader'}
-      responses:
-        '204': {description: Session revoked}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/auth/me:
     get:
-      tags: [Authentication]
-      operationId: getCurrentUser
-      summary: Get current administrator session state
-      security: [{sessionCookie: []}]
+      tags:
+      - authentication
+      summary: Me
+      operationId: me_api_auth_me_get
       responses:
         '200':
-          description: Current administrator; no password or secret values
+          description: Successful Response
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/SessionUser'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-  /api/accounts:
-    get:
-      tags: [Accounts]
-      operationId: listAccounts
-      summary: Get the configured platform account states
-      security: [{sessionCookie: []}]
-      responses:
-        '200':
-          description: At most one account per platform
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [items]
-                properties:
-                  items:
-                    type: array
-                    items: {$ref: '#/components/schemas/PlatformAccount'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-  /api/accounts/{platform}/login:
+              schema: {}
+  /api/auth/logout:
     post:
-      tags: [Accounts]
-      operationId: startPlatformLogin
-      summary: Start the upstream supported platform authorization flow
-      description: >-
-        Starts an interactive authorization flow. The response contains a
-        flow identifier, status, and, when required by the upstream login flow,
-        a short-lived challenge image for the authenticated administrator.
-        Cookies, reusable session tokens, and browser profile contents are
-        never returned. Challenge data is transient, must not be logged or cached,
-        and expires promptly.
-      security: [{sessionCookie: []}]
-      parameters:
-        - {$ref: '#/components/parameters/PlatformPath'}
-        - {$ref: '#/components/parameters/CsrfHeader'}
+      tags:
+      - authentication
+      summary: Logout
+      operationId: logout_api_auth_logout_post
       responses:
-        '202':
-          description: Authorization flow started
-          headers:
-            Cache-Control:
-              schema: {type: string, const: no-store}
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/AccountLoginFlow'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '409': {$ref: '#/components/responses/Conflict'}
-        '422': {$ref: '#/components/responses/ValidationError'}
-  /api/accounts/{platform}/login-status:
-    get:
-      tags: [Accounts]
-      operationId: getPlatformLoginStatus
-      summary: Read platform login flow status
-      security: [{sessionCookie: []}]
-      parameters:
-        - {$ref: '#/components/parameters/PlatformPath'}
-      responses:
-        '200':
-          description: Current authorization status
-          headers:
-            Cache-Control:
-              schema: {type: string, const: no-store}
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/PlatformAccount'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/NotFound'}
-  /api/settings/model:
-    get:
-      tags: [Settings]
-      operationId: getModelSettings
-      summary: Read non-secret model settings
-      security: [{sessionCookie: []}]
-      responses:
-        '200':
-          description: API key is represented only by a configured flag
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/ModelSettings'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-    put:
-      tags: [Settings]
-      operationId: updateModelSettings
-      summary: Configure the cloud model endpoint and key
-      description: >-
-        Key input is write-only. HTTPS is required; the server rejects loopback,
-        private, link-local, and metadata addresses and unsafe redirects.
-      security: [{sessionCookie: []}]
-      parameters:
-        - {$ref: '#/components/parameters/CsrfHeader'}
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/ModelSettingsUpdate'}
-      responses:
-        '200':
-          description: Settings saved; key is not echoed
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/ModelSettings'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '422': {$ref: '#/components/responses/ValidationError'}
+        '204':
+          description: Successful Response
   /api/tasks:
     get:
-      tags: [Tasks]
-      operationId: listTasks
-      summary: List collection tasks
-      security: [{sessionCookie: []}]
-      parameters:
-        - {$ref: '#/components/parameters/Cursor'}
-        - {$ref: '#/components/parameters/Limit'}
-        - name: platform
-          in: query
-          schema: {$ref: '#/components/schemas/Platform'}
-        - name: state
-          in: query
-          schema: {type: string, enum: [enabled, paused, disabled]}
-        - name: sort_by
-          in: query
-          schema: {type: string, enum: [created_at, updated_at, next_run_at, name], default: updated_at}
-        - name: sort_order
-          in: query
-          schema: {type: string, enum: [asc, desc], default: desc}
+      tags:
+      - collection
+      summary: List Tasks
+      operationId: list_tasks_api_tasks_get
       responses:
         '200':
-          description: A page of tasks
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    post:
+      tags:
+      - collection
+      summary: Create Task
+      operationId: create_task_api_tasks_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
           content:
             application/json:
               schema:
-                allOf:
-                  - {$ref: '#/components/schemas/Page'}
-                  - type: object
-                    properties:
-                      items:
-                        type: array
-                        items: {$ref: '#/components/schemas/Task'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-    post:
-      tags: [Tasks]
-      operationId: createTask
-      summary: Create a collection task
-      security: [{sessionCookie: []}]
-      parameters:
-        - {$ref: '#/components/parameters/CsrfHeader'}
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/TaskCreate'}
-      responses:
-        '201':
-          description: Task created
+                $ref: '#/components/schemas/TaskView'
+        '422':
+          description: Validation Error
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Task'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '422': {$ref: '#/components/responses/ValidationError'}
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/tasks/{task_id}:
-    parameters:
-      - {$ref: '#/components/parameters/TaskIdPath'}
     get:
-      tags: [Tasks]
-      operationId: getTask
-      summary: Get task details
-      security: [{sessionCookie: []}]
+      tags:
+      - collection
+      summary: Get Task
+      operationId: get_task_api_tasks__task_id__get
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
       responses:
         '200':
-          description: Task details
+          description: Successful Response
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Task'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/NotFound'}
+              schema:
+                $ref: '#/components/schemas/TaskView'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
     patch:
-      tags: [Tasks]
-      operationId: updateTask
-      summary: Update task configuration
-      description: A running task keeps its start-time configuration snapshot.
-      security: [{sessionCookie: []}]
+      tags:
+      - collection
+      summary: Update Task
+      operationId: update_task_api_tasks__task_id__patch
       parameters:
-        - {$ref: '#/components/parameters/CsrfHeader'}
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
       requestBody:
         required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/TaskUpdate'}
+            schema:
+              $ref: '#/components/schemas/TaskPatch'
       responses:
         '200':
-          description: Updated task
+          description: Successful Response
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Task'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '409': {$ref: '#/components/responses/Conflict'}
-        '422': {$ref: '#/components/responses/ValidationError'}
+              schema:
+                $ref: '#/components/schemas/TaskView'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
     delete:
-      tags: [Tasks]
-      operationId: disableTask
-      summary: Disable and archive a task
-      description: Existing task runs and collected comments are retained.
-      security: [{sessionCookie: []}]
+      tags:
+      - collection
+      summary: Disable Task
+      operationId: disable_task_api_tasks__task_id__delete
       parameters:
-        - {$ref: '#/components/parameters/CsrfHeader'}
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
       responses:
-        '204': {description: Task disabled}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/NotFound'}
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/tasks/{task_id}/run:
     post:
-      tags: [Tasks]
-      operationId: runTask
-      summary: Queue an immediate task run
-      security: [{sessionCookie: []}]
+      tags:
+      - collection
+      summary: Run Task
+      operationId: run_task_api_tasks__task_id__run_post
       parameters:
-        - {$ref: '#/components/parameters/TaskIdPath'}
-        - {$ref: '#/components/parameters/CsrfHeader'}
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
       responses:
         '202':
-          description: Run accepted into the global serial queue
+          description: Successful Response
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/TaskRun'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '409': {$ref: '#/components/responses/Conflict'}
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/tasks/{task_id}/pause:
     post:
-      tags: [Tasks]
-      operationId: pauseTask
-      summary: Pause future scheduled runs
-      security: [{sessionCookie: []}]
+      tags:
+      - collection
+      summary: Pause Task
+      operationId: pause_task_api_tasks__task_id__pause_post
       parameters:
-        - {$ref: '#/components/parameters/TaskIdPath'}
-        - {$ref: '#/components/parameters/CsrfHeader'}
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
       responses:
         '200':
-          description: Task paused
+          description: Successful Response
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Task'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/NotFound'}
+              schema:
+                $ref: '#/components/schemas/TaskView'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/tasks/{task_id}/resume:
     post:
-      tags: [Tasks]
-      operationId: resumeTask
-      summary: Resume future scheduled runs
-      security: [{sessionCookie: []}]
+      tags:
+      - collection
+      summary: Resume Task
+      operationId: resume_task_api_tasks__task_id__resume_post
       parameters:
-        - {$ref: '#/components/parameters/TaskIdPath'}
-        - {$ref: '#/components/parameters/CsrfHeader'}
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
       responses:
         '200':
-          description: Task resumed
+          description: Successful Response
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Task'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '422': {$ref: '#/components/responses/ValidationError'}
+              schema:
+                $ref: '#/components/schemas/TaskView'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/runs:
     get:
-      tags: [Runs]
-      operationId: listRuns
-      summary: Search task runs
-      security: [{sessionCookie: []}]
+      tags:
+      - collection
+      summary: List Runs
+      operationId: list_runs_api_runs_get
       parameters:
-        - {$ref: '#/components/parameters/Cursor'}
-        - {$ref: '#/components/parameters/Limit'}
-        - name: task_id
-          in: query
-          schema: {type: string, format: uuid}
-        - name: status
-          in: query
-          schema: {$ref: '#/components/schemas/RunStatus'}
-        - name: sort_by
-          in: query
-          schema: {type: string, enum: [created_at, started_at, finished_at, status], default: created_at}
-        - name: sort_order
-          in: query
-          schema: {type: string, enum: [asc, desc], default: desc}
+      - name: task_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 50
+          title: Limit
       responses:
         '200':
-          description: A page of runs
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
           content:
             application/json:
               schema:
-                allOf:
-                  - {$ref: '#/components/schemas/Page'}
-                  - type: object
-                    properties:
-                      items:
-                        type: array
-                        items: {$ref: '#/components/schemas/TaskRun'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-  /api/runs/{run_id}:
-    get:
-      tags: [Runs]
-      operationId: getRun
-      summary: Get run status and safe summary
-      security: [{sessionCookie: []}]
-      parameters:
-        - {$ref: '#/components/parameters/RunIdPath'}
-      responses:
-        '200':
-          description: Run details
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/TaskRun'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/NotFound'}
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/runs/{run_id}/cancel:
     post:
-      tags: [Runs]
-      operationId: cancelRun
-      summary: Request cooperative cancellation of a queued or running task
-      security: [{sessionCookie: []}]
+      tags:
+      - collection
+      summary: Cancel Run
+      operationId: cancel_run_api_runs__run_id__cancel_post
       parameters:
-        - {$ref: '#/components/parameters/RunIdPath'}
-        - {$ref: '#/components/parameters/CsrfHeader'}
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
       responses:
-        '202': {description: Cancellation requested}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '409': {$ref: '#/components/responses/Conflict'}
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/comments:
     get:
-      tags: [Comments]
-      operationId: listComments
-      summary: Search collected comments
-      security: [{sessionCookie: []}]
+      tags:
+      - collection
+      summary: List Comments
+      operationId: list_comments_api_comments_get
       parameters:
-        - {$ref: '#/components/parameters/Cursor'}
-        - {$ref: '#/components/parameters/Limit'}
-        - name: platform
-          in: query
-          schema: {$ref: '#/components/schemas/Platform'}
-        - name: task_id
-          in: query
-          schema: {type: string, format: uuid}
-        - name: q
-          in: query
-          description: Literal text search over comment body; wildcards are not interpreted.
-          schema: {type: string, maxLength: 500}
-        - name: author_user_id
-          in: query
-          schema: {type: string, maxLength: 256}
-        - name: rule_version_id
-          in: query
-          schema: {type: string, format: uuid}
-        - name: matched
-          in: query
-          schema: {type: boolean}
-        - name: observed_from
-          in: query
-          schema: {type: string, format: date-time}
-        - name: observed_to
-          in: query
-          schema: {type: string, format: date-time}
-        - name: sort_by
-          in: query
-          schema: {type: string, enum: [comment_time, latest_observed_at, latest_like_count, latest_reply_count], default: latest_observed_at}
-        - name: sort_order
-          in: query
-          schema: {type: string, enum: [asc, desc], default: desc}
+      - name: platform
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^(dy|xhs)$
+          - type: 'null'
+          title: Platform
+      - name: task_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Id
+      - name: q
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Q
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
       responses:
         '200':
-          description: A page of comments with latest observed values
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
           content:
             application/json:
               schema:
-                allOf:
-                  - {$ref: '#/components/schemas/Page'}
-                  - type: object
-                    properties:
-                      items:
-                        type: array
-                        items: {$ref: '#/components/schemas/Comment'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '422': {$ref: '#/components/responses/ValidationError'}
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/comments/{comment_id}/snapshots:
     get:
-      tags: [Comments]
-      operationId: listCommentSnapshots
-      summary: List observations for a deduplicated comment
-      security: [{sessionCookie: []}]
+      tags:
+      - collection
+      summary: Comment Snapshots
+      operationId: comment_snapshots_api_comments__comment_id__snapshots_get
       parameters:
-        - {$ref: '#/components/parameters/CommentIdPath'}
-        - {$ref: '#/components/parameters/Cursor'}
-        - {$ref: '#/components/parameters/Limit'}
-        - name: sort_order
-          in: query
-          schema: {type: string, enum: [asc, desc], default: asc}
+      - name: comment_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Comment Id
       responses:
         '200':
-          description: Snapshot history in observation order
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
           content:
             application/json:
               schema:
-                allOf:
-                  - {$ref: '#/components/schemas/Page'}
-                  - type: object
-                    properties:
-                      items:
-                        type: array
-                        items: {$ref: '#/components/schemas/CommentSnapshot'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/NotFound'}
-  /api/filter-rules:
-    get:
-      tags: [Filter rules]
-      operationId: listFilterRules
-      summary: List draft and approved immutable rule versions
-      security: [{sessionCookie: []}]
-      parameters:
-        - {$ref: '#/components/parameters/Cursor'}
-        - {$ref: '#/components/parameters/Limit'}
-        - name: sort_by
-          in: query
-          schema: {type: string, enum: [created_at, approved_at], default: created_at}
-        - name: sort_order
-          in: query
-          schema: {type: string, enum: [asc, desc], default: desc}
-      responses:
-        '200':
-          description: A page of rule versions
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - {$ref: '#/components/schemas/Page'}
-                  - type: object
-                    properties:
-                      items:
-                        type: array
-                        items: {$ref: '#/components/schemas/FilterRule'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-  /api/filter-rules/drafts:
-    post:
-      tags: [Filter rules]
-      operationId: createFilterRuleDraft
-      summary: Convert a natural-language criterion into an unapproved draft
-      description: Only the criterion and necessary comment text may be sent to the configured model; author fields are excluded.
-      security: [{sessionCookie: []}]
-      parameters:
-        - {$ref: '#/components/parameters/CsrfHeader'}
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/FilterRuleDraftRequest'}
-      responses:
-        '201':
-          description: Draft created; it cannot be used by a task until approved
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/FilterRule'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '422': {$ref: '#/components/responses/ValidationError'}
-        '502': {$ref: '#/components/responses/UpstreamFailure'}
-  /api/filter-rules/{rule_id}/preview:
-    post:
-      tags: [Filter rules]
-      operationId: previewFilterRule
-      summary: Evaluate a draft against selected sample comments
-      security: [{sessionCookie: []}]
-      parameters:
-        - {$ref: '#/components/parameters/RuleIdPath'}
-        - {$ref: '#/components/parameters/CsrfHeader'}
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/RulePreviewRequest'}
-      responses:
-        '200':
-          description: Preview outcomes for review; this does not approve the rule
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/RulePreview'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '409': {$ref: '#/components/responses/Conflict'}
-  /api/filter-rules/{rule_id}/approve:
-    post:
-      tags: [Filter rules]
-      operationId: approveFilterRule
-      summary: Approve and freeze a previewed rule version
-      security: [{sessionCookie: []}]
-      parameters:
-        - {$ref: '#/components/parameters/RuleIdPath'}
-        - {$ref: '#/components/parameters/CsrfHeader'}
-      responses:
-        '200':
-          description: Approved immutable version
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/FilterRule'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '409': {$ref: '#/components/responses/Conflict'}
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/exports/comments:
     get:
-      tags: [Exports]
-      operationId: exportComments
-      summary: Export filtered comments as CSV or XLSX
-      description: Exports are capped at 10000 rows per request and use the same filters as GET /api/comments. Text cells are protected against spreadsheet formula injection.
-      security: [{sessionCookie: []}]
+      tags:
+      - collection
+      summary: Export Comments
+      operationId: export_comments_api_exports_comments_get
       parameters:
-        - name: format
-          in: query
-          required: true
-          schema: {type: string, enum: [csv, xlsx]}
-        - name: platform
-          in: query
-          schema: {$ref: '#/components/schemas/Platform'}
-        - name: task_id
-          in: query
-          schema: {type: string, format: uuid}
-        - name: q
-          in: query
-          schema: {type: string, maxLength: 500}
-        - name: author_user_id
-          in: query
-          schema: {type: string, maxLength: 256}
-        - name: rule_version_id
-          in: query
-          schema: {type: string, format: uuid}
-        - name: matched
-          in: query
-          schema: {type: boolean}
-        - name: observed_from
-          in: query
-          schema: {type: string, format: date-time}
-        - name: observed_to
-          in: query
-          schema: {type: string, format: date-time}
-        - name: sort_by
-          in: query
-          schema: {type: string, enum: [comment_time, latest_observed_at, latest_like_count, latest_reply_count], default: latest_observed_at}
-        - name: sort_order
-          in: query
-          schema: {type: string, enum: [asc, desc], default: desc}
+      - name: format
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(csv|xlsx)$
+          default: csv
+          title: Format
+      - name: platform
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^(dy|xhs)$
+          - type: 'null'
+          title: Platform
+      - name: task_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Id
+      - name: q
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Q
       responses:
         '200':
-          description: Downloadable export
-          headers:
-            Content-Disposition: {schema: {type: string}}
+          description: Successful Response
           content:
-            text/csv: {schema: {type: string, format: binary}}
-            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: {schema: {type: string, format: binary}}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '422': {$ref: '#/components/responses/ValidationError'}
-        '413': {$ref: '#/components/responses/ExportTooLarge'}
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/filter-rules/config:
+    get:
+      tags:
+      - filter-rules
+      summary: Get Filter Model Status
+      description: Expose whether server-side model configuration exists, never its
+        secret values.
+      operationId: get_filter_model_status_api_filter_rules_config_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/filter-rules/drafts:
+    post:
+      tags:
+      - filter-rules
+      summary: Create Filter Rule Draft
+      operationId: create_filter_rule_draft_api_filter_rules_drafts_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FilterRuleDraftRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterRuleView'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/filter-rules/{rule_id}:
+    get:
+      tags:
+      - filter-rules
+      summary: Get Filter Rule
+      operationId: get_filter_rule_api_filter_rules__rule_id__get
+      parameters:
+      - name: rule_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Rule Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterRuleView'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/filter-rules/{rule_id}/approve:
+    post:
+      tags:
+      - filter-rules
+      summary: Approve Filter Rule
+      operationId: approve_filter_rule_api_filter_rules__rule_id__approve_post
+      parameters:
+      - name: rule_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Rule Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterRuleView'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /:
+    get:
+      summary: Serve Frontend
+      description: Return frontend page
+      operationId: serve_frontend__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/health:
+    get:
+      summary: Health Check
+      operationId: health_check_api_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /health/live:
+    get:
+      summary: Liveness Probe
+      operationId: liveness_probe_health_live_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /health/ready:
+    get:
+      summary: Readiness Probe
+      operationId: readiness_probe_health_ready_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/env/check:
+    get:
+      summary: Check Environment
+      description: Check if MediaCrawler environment is configured correctly
+      operationId: check_environment_api_env_check_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/config/platforms:
+    get:
+      summary: Get Platforms
+      description: Get list of supported platforms
+      operationId: get_platforms_api_config_platforms_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/config/options:
+    get:
+      summary: Get Config Options
+      description: Get all configuration options
+      operationId: get_config_options_api_config_options_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
 components:
-  securitySchemes:
-    sessionCookie:
-      type: apiKey
-      in: cookie
-      name: collector_session
-      description: Opaque server-side session cookie; Secure, HttpOnly and SameSite.
-  parameters:
-    CsrfHeader:
-      name: X-CSRF-Token
-      in: header
-      required: true
-      schema: {type: string}
-    PlatformPath:
-      name: platform
-      in: path
-      required: true
-      schema: {$ref: '#/components/schemas/Platform'}
-    TaskIdPath:
-      name: task_id
-      in: path
-      required: true
-      schema: {type: string, format: uuid}
-    RunIdPath:
-      name: run_id
-      in: path
-      required: true
-      schema: {type: string, format: uuid}
-    CommentIdPath:
-      name: comment_id
-      in: path
-      required: true
-      schema: {type: string, format: uuid}
-    RuleIdPath:
-      name: rule_id
-      in: path
-      required: true
-      schema: {type: string, format: uuid}
-    Cursor:
-      name: cursor
-      in: query
-      required: false
-      schema: {type: string}
-      description: Opaque cursor returned by the previous page.
-    Limit:
-      name: limit
-      in: query
-      required: false
-      schema: {type: integer, minimum: 1, maximum: 200, default: 50}
-  responses:
-    Unauthorized:
-      description: Authentication required or session expired
-      content:
-        application/json:
-          schema: {$ref: '#/components/schemas/Error'}
-    Forbidden:
-      description: CSRF token invalid or action not permitted
-      content:
-        application/json:
-          schema: {$ref: '#/components/schemas/Error'}
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema: {$ref: '#/components/schemas/Error'}
-    Conflict:
-      description: Current resource state does not allow this operation
-      content:
-        application/json:
-          schema: {$ref: '#/components/schemas/Error'}
-    ValidationError:
-      description: Request validation failed
-      content:
-        application/json:
-          schema: {$ref: '#/components/schemas/Error'}
-    RateLimited:
-      description: Login attempt rate limit exceeded
-      headers:
-        Retry-After: {schema: {type: integer}}
-      content:
-        application/json:
-          schema: {$ref: '#/components/schemas/Error'}
-    UpstreamFailure:
-      description: Configured model provider failed or returned invalid output
-      content:
-        application/json:
-          schema: {$ref: '#/components/schemas/Error'}
-    ExportTooLarge:
-      description: Export row cap exceeded; narrow the search filters
-      content:
-        application/json:
-          schema: {$ref: '#/components/schemas/Error'}
   schemas:
-    Platform:
-      type: string
-      enum: [douyin, xiaohongshu]
-    Probe:
-      type: object
-      required: [status]
+    CrawlerStartRequest:
       properties:
-        status: {type: string, enum: [ok]}
-    Error:
+        platform:
+          $ref: '#/components/schemas/PlatformEnum'
+        login_type:
+          $ref: '#/components/schemas/LoginTypeEnum'
+          default: qrcode
+        crawler_type:
+          $ref: '#/components/schemas/CrawlerTypeEnum'
+          default: search
+        keywords:
+          type: string
+          title: Keywords
+          default: ''
+        specified_ids:
+          type: string
+          title: Specified Ids
+          default: ''
+        creator_ids:
+          type: string
+          title: Creator Ids
+          default: ''
+        start_page:
+          type: integer
+          title: Start Page
+          default: 1
+        enable_comments:
+          type: boolean
+          title: Enable Comments
+          default: true
+        enable_sub_comments:
+          type: boolean
+          title: Enable Sub Comments
+          default: false
+        enable_media:
+          type: boolean
+          title: Enable Media
+          default: false
+        save_option:
+          $ref: '#/components/schemas/SaveDataOptionEnum'
+          default: jsonl
+        cookies:
+          type: string
+          title: Cookies
+          default: ''
+        headless:
+          type: boolean
+          title: Headless
+          default: false
+        max_notes_count:
+          anyOf:
+          - type: integer
+            maximum: 10000.0
+            minimum: 1.0
+          - type: 'null'
+          title: Max Notes Count
+        max_comments_count:
+          anyOf:
+          - type: integer
+            maximum: 10000.0
+            minimum: 1.0
+          - type: 'null'
+          title: Max Comments Count
       type: object
-      required: [error]
+      required:
+      - platform
+      title: CrawlerStartRequest
+      description: Crawler start request
+    CrawlerStatusResponse:
       properties:
-        error:
-          type: object
-          required: [code, message, request_id]
-          properties:
-            code: {type: string, description: Stable machine-readable error code}
-            message: {type: string, description: Safe user-facing message}
-            request_id: {type: string}
-            details:
-              type: array
-              items:
-                type: object
-                properties:
-                  field: {type: string}
-                  code: {type: string}
-                  message: {type: string}
-    LoginRequest:
-      type: object
-      required: [password]
-      properties:
-        password: {type: string, minLength: 1, maxLength: 1024, writeOnly: true}
-    SessionUser:
-      type: object
-      required: [authenticated, role]
-      properties:
-        authenticated: {type: boolean, const: true}
-        role: {type: string, const: admin}
-    PlatformAccount:
-      type: object
-      required: [platform, status, configured]
-      properties:
-        platform: {$ref: '#/components/schemas/Platform'}
         status:
           type: string
-          enum: [not_configured, logged_out, login_pending, authenticated, needs_attention]
-        configured: {type: boolean}
-        checked_at: {type: string, format: date-time}
-        safe_message: {type: string, description: No cookie or token values}
-        login_flow:
-          oneOf:
-            - {$ref: '#/components/schemas/AccountLoginFlow'}
-            - type: 'null'
-    AccountLoginFlow:
+          enum:
+          - idle
+          - running
+          - stopping
+          - error
+          title: Status
+        platform:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Platform
+        crawler_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Crawler Type
+        started_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Started At
+        error_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Message
       type: object
-      required: [platform, flow_id, status]
-      properties:
-        platform: {$ref: '#/components/schemas/Platform'}
-        flow_id: {type: string, format: uuid}
-        status: {type: string, enum: [login_pending]}
-        expires_at: {type: string, format: date-time}
-        challenge_image_data:
-          type: [string, 'null']
-          description: Short-lived image data URI required for interactive login; available only to the authenticated administrator and never logged, cached, or persisted.
-          maxLength: 1000000
-    ModelSettings:
-      type: object
-      required: [configured, base_url, model]
-      properties:
-        configured: {type: boolean}
-        base_url: {type: string, format: uri}
-        model: {type: string}
-    ModelSettingsUpdate:
-      type: object
-      required: [base_url, model]
-      properties:
-        base_url: {type: string, format: uri, pattern: '^https://'}
-        model: {type: string, minLength: 1, maxLength: 200}
-        api_key: {type: string, minLength: 1, maxLength: 4096, writeOnly: true}
-    Page:
-      type: object
-      required: [items, next_cursor]
-      description: Opaque cursor pagination; ordering is stable with resource ID as the final tie-breaker.
-      properties:
-        items: {type: array, items: {type: object}}
-        next_cursor: {type: [string, 'null']}
-    TaskSource:
-      description: URLs must resolve to supported public Douyin or Xiaohongshu content pages. The server rejects other hosts and local/private destinations, then removes temporary query tokens before persistence.
-      oneOf:
-        - type: object
-          required: [mode, keywords]
-          properties:
-            mode: {type: string, const: keywords}
-            keywords:
-              type: array
-              minItems: 1
-              maxItems: 20
-              items: {type: string, minLength: 1, maxLength: 100}
-        - type: object
-          required: [mode, urls]
-          properties:
-            mode: {type: string, const: urls}
-            urls:
-              type: array
-              minItems: 1
-              maxItems: 100
-              items: {type: string, format: uri, maxLength: 2048}
-    Schedule:
-      oneOf:
-        - type: object
-          required: [type]
-          properties:
-            type: {type: string, const: manual}
-        - type: object
-          required: [type, every_minutes]
-          properties:
-            type: {type: string, const: interval}
-            every_minutes: {type: integer, minimum: 60}
-        - type: object
-          required: [type, cron, timezone]
-          properties:
-            type: {type: string, const: cron}
-            cron: {type: string, minLength: 9, maxLength: 100}
-            timezone: {type: string, const: Asia/Shanghai}
-    TaskLimits:
-      type: object
-      required: [max_contents, max_comments_per_content]
-      description: >-
-        Values are capped by server-side configurable hard limits. The initial
-        maxima below are conservative engineering defaults and must be reviewed
-        after small-scope local validation.
-      properties:
-        max_contents: {type: integer, minimum: 1, maximum: 100, default: 20}
-        max_comments_per_content: {type: integer, minimum: 1, maximum: 1000, default: 100}
-    TaskCreate:
-      type: object
-      required: [name, platform, source, schedule, limits]
-      properties:
-        name: {type: string, minLength: 1, maxLength: 120}
-        platform: {$ref: '#/components/schemas/Platform'}
-        source: {$ref: '#/components/schemas/TaskSource'}
-        schedule: {$ref: '#/components/schemas/Schedule'}
-        limits: {$ref: '#/components/schemas/TaskLimits'}
-        include_keywords: {type: array, items: {type: string, maxLength: 100}, maxItems: 100, default: []}
-        exclude_keywords: {type: array, items: {type: string, maxLength: 100}, maxItems: 100, default: []}
-        approved_rule_version_id: {type: [string, 'null'], format: uuid}
-    TaskUpdate:
-      type: object
-      minProperties: 1
-      properties:
-        name: {type: string, minLength: 1, maxLength: 120}
-        source: {$ref: '#/components/schemas/TaskSource'}
-        schedule: {$ref: '#/components/schemas/Schedule'}
-        limits: {$ref: '#/components/schemas/TaskLimits'}
-        include_keywords: {type: array, items: {type: string, maxLength: 100}, maxItems: 100}
-        exclude_keywords: {type: array, items: {type: string, maxLength: 100}, maxItems: 100}
-        approved_rule_version_id: {type: [string, 'null'], format: uuid}
-    Task:
-      allOf:
-        - {$ref: '#/components/schemas/TaskCreate'}
-        - type: object
-          required: [id, state, created_at, updated_at]
-          properties:
-            id: {type: string, format: uuid}
-            state: {type: string, enum: [enabled, paused, disabled]}
-            next_run_at: {type: [string, 'null'], format: date-time}
-            created_at: {type: string, format: date-time}
-            updated_at: {type: string, format: date-time}
-    RunStatus:
+      required:
+      - status
+      title: CrawlerStatusResponse
+      description: Crawler status response
+    CrawlerTypeEnum:
       type: string
-      enum: [queued, running, succeeded, partial, failed, cancelled, interrupted]
-    TaskRun:
-      type: object
-      required: [id, task_id, trigger_type, status, counts, created_at]
+      enum:
+      - search
+      - detail
+      - creator
+      title: CrawlerTypeEnum
+      description: Crawler type
+    FilterRuleDefinition:
       properties:
-        id: {type: string, format: uuid}
-        task_id: {type: string, format: uuid}
-        trigger_type: {type: string, enum: [manual, interval, cron, retry]}
-        status: {$ref: '#/components/schemas/RunStatus'}
-        queued_at: {type: string, format: date-time}
-        started_at: {type: [string, 'null'], format: date-time}
-        finished_at: {type: [string, 'null'], format: date-time}
-        counts:
-          type: object
-          additionalProperties: {type: integer, minimum: 0}
-        error_code: {type: [string, 'null']}
-        safe_summary: {type: [string, 'null'], maxLength: 1000}
-        created_at: {type: string, format: date-time}
-    Author:
-      type: object
-      additionalProperties: false
-      properties:
-        platform_user_id: {type: [string, 'null'], maxLength: 256}
-        nickname: {type: [string, 'null'], maxLength: 256}
-        profile_url: {type: [string, 'null'], format: uri, maxLength: 2048}
-    Comment:
-      type: object
-      required: [id, platform, content_title, content_url, body, matched, latest_observed_at]
-      properties:
-        id: {type: string, format: uuid}
-        platform: {$ref: '#/components/schemas/Platform'}
-        content_title: {type: [string, 'null'], maxLength: 1000}
-        content_url: {type: [string, 'null'], format: uri}
-        body: {type: string}
-        comment_time: {type: [string, 'null'], format: date-time}
-        matched: {type: boolean}
-        matched_rule_versions:
+        summary:
+          type: string
+          maxLength: 400
+          minLength: 1
+          title: Summary
+        required_signals:
+          items:
+            type: string
           type: array
-          items: {type: string, format: uuid}
-        author: {$ref: '#/components/schemas/Author'}
-        latest_like_count: {type: [integer, 'null'], minimum: 0}
-        latest_reply_count: {type: [integer, 'null'], minimum: 0}
-        latest_observed_at: {type: string, format: date-time}
-    CommentSnapshot:
+          maxItems: 8
+          title: Required Signals
+        positive_signals:
+          items:
+            type: string
+          type: array
+          maxItems: 8
+          minItems: 1
+          title: Positive Signals
+        negative_signals:
+          items:
+            type: string
+          type: array
+          maxItems: 8
+          title: Negative Signals
+      additionalProperties: false
       type: object
-      required: [id, run_id, observed_at]
-      properties:
-        id: {type: string, format: uuid}
-        run_id: {type: string, format: uuid}
-        like_count: {type: [integer, 'null'], minimum: 0}
-        reply_count: {type: [integer, 'null'], minimum: 0}
-        author: {$ref: '#/components/schemas/Author'}
-        observed_at: {type: string, format: date-time}
+      required:
+      - summary
+      - positive_signals
+      title: FilterRuleDefinition
+      description: Allowlisted, human-readable semantic criteria returned by the model.
     FilterRuleDraftRequest:
-      type: object
-      required: [natural_language]
       properties:
-        natural_language: {type: string, minLength: 1, maxLength: 4000}
-        language: {type: string, enum: [zh-CN, en], default: zh-CN}
-    FilterRule:
+        intent:
+          type: string
+          maxLength: 2000
+          minLength: 1
+          title: Intent
+        supersedes_rule_id:
+          anyOf:
+          - type: string
+            maxLength: 36
+          - type: 'null'
+          title: Supersedes Rule Id
       type: object
-      required: [id, status, natural_language, rule, created_at]
+      required:
+      - intent
+      title: FilterRuleDraftRequest
+    FilterRuleView:
       properties:
-        id: {type: string, format: uuid}
-        status: {type: string, enum: [draft, approved, failed]}
-        natural_language: {type: string}
-        rule: {$ref: '#/components/schemas/RuleDsl'}
-        model_name: {type: [string, 'null']}
-        created_at: {type: string, format: date-time}
-        approved_at: {type: [string, 'null'], format: date-time}
-    RuleDsl:
+        id:
+          type: string
+          title: Id
+        lineage_id:
+          type: string
+          title: Lineage Id
+        version:
+          type: integer
+          title: Version
+        parent_rule_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Parent Rule Id
+        intent:
+          type: string
+          title: Intent
+        definition:
+          $ref: '#/components/schemas/FilterRuleDefinition'
+        model_name:
+          type: string
+          title: Model Name
+        status:
+          type: string
+          enum:
+          - draft
+          - approved
+          title: Status
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        approved_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Approved At
       type: object
-      additionalProperties: false
-      required: [version, conditions]
+      required:
+      - id
+      - lineage_id
+      - version
+      - parent_rule_id
+      - intent
+      - definition
+      - model_name
+      - status
+      - created_at
+      - approved_at
+      title: FilterRuleView
+    HTTPValidationError:
       properties:
-        version: {type: integer, const: 1}
-        conditions:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
           type: array
-          minItems: 1
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    LoginRequest:
+      properties:
+        username:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Username
+        password:
+          type: string
+          maxLength: 256
+          minLength: 1
+          title: Password
+      type: object
+      required:
+      - username
+      - password
+      title: LoginRequest
+      description: Administrator credentials submitted over the same-origin API.
+    LoginTypeEnum:
+      type: string
+      enum:
+      - qrcode
+      - phone
+      - cookie
+      title: LoginTypeEnum
+      description: Login method
+    PlatformEnum:
+      type: string
+      enum:
+      - xhs
+      - dy
+      - ks
+      - bili
+      - wb
+      - tieba
+      - zhihu
+      title: PlatformEnum
+      description: Supported media platforms
+    SaveDataOptionEnum:
+      type: string
+      enum:
+      - csv
+      - db
+      - json
+      - jsonl
+      - sqlite
+      - mongodb
+      - excel
+      title: SaveDataOptionEnum
+      description: Data save option
+    TaskCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 120
+          minLength: 1
+          title: Name
+        platform:
+          type: string
+          enum:
+          - dy
+          - xhs
+          title: Platform
+        source_mode:
+          type: string
+          enum:
+          - search
+          - detail
+          title: Source Mode
+        source_values:
+          items:
+            type: string
+          type: array
           maxItems: 20
-          items:
-            type: object
-            additionalProperties: false
-            required: [field, operator, value]
-            properties:
-              field: {type: string, enum: [comment_text]}
-              operator: {type: string, enum: [contains, not_contains, equals, regex_safe]}
-              value: {type: string, minLength: 1, maxLength: 500}
-    RulePreviewRequest:
-      type: object
-      required: [sample_comment_ids]
-      properties:
-        sample_comment_ids:
-          type: array
           minItems: 1
-          maxItems: 100
-          items: {type: string, format: uuid}
-    RulePreview:
-      type: object
-      required: [rule_id, outcomes]
-      properties:
-        rule_id: {type: string, format: uuid}
-        outcomes:
-          type: array
+          title: Source Values
+        include_keywords:
           items:
+            type: string
+          type: array
+          maxItems: 50
+          title: Include Keywords
+        exclude_keywords:
+          items:
+            type: string
+          type: array
+          maxItems: 50
+          title: Exclude Keywords
+        filter_rule_id:
+          anyOf:
+          - type: string
+            maxLength: 36
+          - type: 'null'
+          title: Filter Rule Id
+        max_contents:
+          type: integer
+          maximum: 100.0
+          minimum: 1.0
+          title: Max Contents
+          default: 20
+        max_comments_per_content:
+          type: integer
+          maximum: 1000.0
+          minimum: 1.0
+          title: Max Comments Per Content
+          default: 100
+        schedule_type:
+          type: string
+          enum:
+          - manual
+          - interval
+          - cron
+          title: Schedule Type
+          default: manual
+        schedule_value:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Schedule Value
+      type: object
+      required:
+      - name
+      - platform
+      - source_mode
+      - source_values
+      title: TaskCreate
+      description: Create a bounded collection task using the approved upstream modes.
+    TaskPatch:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 120
+            minLength: 1
+          - type: 'null'
+          title: Name
+        source_values:
+          anyOf:
+          - items:
+              type: string
+            type: array
+            maxItems: 20
+            minItems: 1
+          - type: 'null'
+          title: Source Values
+        include_keywords:
+          anyOf:
+          - items:
+              type: string
+            type: array
+            maxItems: 50
+          - type: 'null'
+          title: Include Keywords
+        exclude_keywords:
+          anyOf:
+          - items:
+              type: string
+            type: array
+            maxItems: 50
+          - type: 'null'
+          title: Exclude Keywords
+        filter_rule_id:
+          anyOf:
+          - type: string
+            maxLength: 36
+          - type: 'null'
+          title: Filter Rule Id
+        max_contents:
+          anyOf:
+          - type: integer
+            maximum: 100.0
+            minimum: 1.0
+          - type: 'null'
+          title: Max Contents
+        max_comments_per_content:
+          anyOf:
+          - type: integer
+            maximum: 1000.0
+            minimum: 1.0
+          - type: 'null'
+          title: Max Comments Per Content
+        schedule_type:
+          anyOf:
+          - type: string
+            enum:
+            - manual
+            - interval
+            - cron
+          - type: 'null'
+          title: Schedule Type
+        schedule_value:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Schedule Value
+      type: object
+      title: TaskPatch
+      description: Partial task update; omitted values keep their current settings.
+    TaskView:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        platform:
+          type: string
+          title: Platform
+        source_mode:
+          type: string
+          title: Source Mode
+        source_values:
+          items:
+            type: string
+          type: array
+          title: Source Values
+        include_keywords:
+          items:
+            type: string
+          type: array
+          title: Include Keywords
+        exclude_keywords:
+          items:
+            type: string
+          type: array
+          title: Exclude Keywords
+        filter_rule_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Filter Rule Id
+        filter_rule:
+          anyOf:
+          - additionalProperties: true
             type: object
-            required: [comment_id, matched]
-            properties:
-              comment_id: {type: string, format: uuid}
-              matched: {type: boolean}
-              reason: {type: string, maxLength: 1000}
+          - type: 'null'
+          title: Filter Rule
+        max_contents:
+          type: integer
+          title: Max Contents
+        max_comments_per_content:
+          type: integer
+          title: Max Comments Per Content
+        schedule_type:
+          type: string
+          title: Schedule Type
+        schedule_value:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Schedule Value
+        state:
+          type: string
+          title: State
+        next_run_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Next Run At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - name
+      - platform
+      - source_mode
+      - source_values
+      - include_keywords
+      - exclude_keywords
+      - filter_rule_id
+      - max_contents
+      - max_comments_per_content
+      - schedule_type
+      - schedule_value
+      - state
+      - next_run_at
+      - created_at
+      - updated_at
+      title: TaskView
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

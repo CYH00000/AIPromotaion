@@ -25,22 +25,49 @@ import asyncio
 import os
 import sys
 import subprocess
+from contextlib import asynccontextmanager
 from pathlib import Path
+from dotenv import load_dotenv
+
+PROJECT_ROOT = Path(__file__).parent.parent
+load_dotenv(PROJECT_ROOT / ".env")
+
 import uvicorn
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi import HTTPException
+from sqlalchemy import text
 
-from .routers import crawler_router, data_router, websocket_router
+from .routers import auth_router, collection_router, crawler_router, data_router, filter_rules_router, websocket_router
+from .services.auth_service import require_admin
+from .services.collection_worker import collection_worker
+from database.collector_database import apply_collector_migrations, close_collector_database, engine
 
-# Project root directory (used for running subprocesses like uv run main.py)
-PROJECT_ROOT = Path(__file__).parent.parent
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    admin_username = os.getenv("ADMIN_USERNAME", "")
+    admin_password = os.getenv("ADMIN_PASSWORD", "")
+    if not admin_username or len(admin_password) < 16 or admin_password.startswith("replace-with"):
+        raise RuntimeError("Set ADMIN_USERNAME and a unique ADMIN_PASSWORD of at least 16 characters in .env")
+    await apply_collector_migrations()
+    await collection_worker.start()
+    try:
+        yield
+    finally:
+        await collection_worker.stop()
+        await close_collector_database()
 
 app = FastAPI(
     title="MediaCrawler WebUI API",
-    description="API for controlling MediaCrawler from WebUI",
-    version="1.0.0"
+    description="Comment collection management API",
+    version="0.1.0",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+    lifespan=lifespan,
 )
 
 # Get webui static files directory
@@ -61,9 +88,12 @@ app.add_middleware(
 )
 
 # Register routers
-app.include_router(crawler_router, prefix="/api")
-app.include_router(data_router, prefix="/api")
+app.include_router(crawler_router, prefix="/api", dependencies=[Depends(require_admin)])
+app.include_router(data_router, prefix="/api", dependencies=[Depends(require_admin)])
 app.include_router(websocket_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
+app.include_router(collection_router, prefix="/api")
+app.include_router(filter_rules_router, prefix="/api")
 
 
 @app.get("/")
@@ -85,7 +115,22 @@ async def health_check():
     return {"status": "ok"}
 
 
-@app.get("/api/env/check")
+@app.get("/health/live")
+async def liveness_probe():
+    return {"status": "alive"}
+
+
+@app.get("/health/ready")
+async def readiness_probe():
+    try:
+        async with engine.connect() as connection:
+            await connection.execute(text("SELECT 1"))
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Required service is unavailable") from exc
+    return {"status": "ready"}
+
+
+@app.get("/api/env/check", dependencies=[Depends(require_admin)])
 async def check_environment():
     """Check if MediaCrawler environment is configured correctly"""
     try:
@@ -96,7 +141,7 @@ async def check_environment():
             process = await loop.run_in_executor(
                 None,
                 lambda: subprocess.run(
-                    ["uv", "run", "main.py", "--help"],
+                    [sys.executable, "main.py", "--help"],
                     capture_output=True,
                     timeout=30.0,
                     cwd=str(PROJECT_ROOT)
@@ -105,7 +150,7 @@ async def check_environment():
             stdout, stderr = process.stdout, process.stderr  # bytes
         else:
             process = await asyncio.create_subprocess_exec(
-                "uv", "run", "main.py", "--help",
+                sys.executable, "main.py", "--help",
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 cwd=str(PROJECT_ROOT)  # Project root directory
@@ -147,7 +192,7 @@ async def check_environment():
         }
 
 
-@app.get("/api/config/platforms")
+@app.get("/api/config/platforms", dependencies=[Depends(require_admin)])
 async def get_platforms():
     """Get list of supported platforms"""
     return {
@@ -163,7 +208,7 @@ async def get_platforms():
     }
 
 
-@app.get("/api/config/options")
+@app.get("/api/config/options", dependencies=[Depends(require_admin)])
 async def get_config_options():
     """Get all configuration options"""
     return {
@@ -197,7 +242,7 @@ if os.path.exists(WEBUI_DIR):
     logos_dir = os.path.join(WEBUI_DIR, "logos")
     if os.path.exists(logos_dir):
         app.mount("/logos", StaticFiles(directory=logos_dir), name="logos")
-    # Mount other static files (e.g., vite.svg)
+    # Mount application static files.
     app.mount("/static", StaticFiles(directory=WEBUI_DIR), name="webui-static")
 
 

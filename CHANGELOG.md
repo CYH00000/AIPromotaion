@@ -9,12 +9,18 @@ software release.
 
 ### Added
 
-- Approved product and architecture specification for the Douyin/Xiaohongshu research collector.
-- Seven subsystem implementation plans, OpenAPI 3.1 contract, development standards, data dictionary, security threat model, testing/acceptance plan, deployment guide, ADRs, and license/source register.
-- Contributor guidance and GitHub pull request/issue templates.
-- A standalone project overview ready to coexist with the upstream root README.
-- Imported NanmiCoder/MediaCrawler at the approved source commit `68d9ef1c1da22eab75940dfd7cec259907006538` while preserving the original upstream README content and licenses.
+- PostgreSQL 18 local service, Alembic-managed project tables, admin sessions, collection tasks/runs, deduplicated comments, and run snapshots.
+- Authenticated FastAPI endpoints for task management, run cancellation, comment search, history, CSV and XLSX export.
+- Serial task worker with persisted interval/Cron schedules that resumes enabled tasks after restarts.
+- Local React task/result workspace and single-admin login screen, built on the existing MediaCrawler WebUI.
+- Keyword include/exclude filtering, allowlisted author fields, stable URL normalization, and formula-safe exports.
 
 ### Changed
 
-- Clarified the current delivery stage: documentation is ready for review; upstream source integration and executable implementation have not started.
+- Reused the pinned MediaCrawler collectors for Douyin/Xiaohongshu; no platform client/signature/login implementation was written from scratch.
+- Changed the Python preference to 3.12 while retaining the upstream `>=3.11` compatibility requirement.
+- Switched dependency resolution to the standard PyPI index after the upstream mirror returned HTTP 403 during lock resolution.
+
+### Deferred
+
+- AI semantic rule generation/preview/approval, platform-account management UI, and cloud HTTPS deployment hardening remain outside this local MVP.

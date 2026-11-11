@@ -1,5 +1,7 @@
 # 云部署与运维说明
 
+> 本文是目标部署设计，不代表当前 MVP 已达到公网部署条件。当前仅支持本机回环地址开发验证。
+
 ## 目标拓扑
 
 单台 Linux 云服务器运行 Compose 服务：HTTPS 反向代理、React/Vite + FastAPI Web/API、单实例采集 Worker、PostgreSQL 18 系列。浏览器资料和数据库数据分别使用持久卷。公网只允许 HTTPS 管理入口。
@@ -8,7 +10,7 @@
 
 部署环境通过秘密管理器或服务器环境变量提供：
 
-- 管理员初始密码与会话签名密钥。
+- 管理员密码与会话/CSRF 配置。
 - PostgreSQL 用户/密码和数据库名。
 - 抖音与小红书登录凭据或持久浏览器会话配置。
 - AI 服务 Base URL、模型名和 API Key。
@@ -20,7 +22,7 @@
 
 - 主机防火墙只开放 443；HTTP 端口仅用于跳转到 HTTPS（若反向代理配置需要）。
 - PostgreSQL、FastAPI 内部端口、Worker API、Playwright/CDP 端口绑定私网或容器内部网络。
-- 禁用公开注册；管理员登录启用 TLS、Argon2id 密码哈希、Secure/HttpOnly/SameSite 会话、CSRF 防护和登录限速。
+- 禁用公开注册；生产加固需要 TLS、密码哈希、Secure/HttpOnly/SameSite 会话、CSRF 防护和登录限速。MVP 当前从本机 `.env` 读取管理员密码，公网部署前必须替换为符合该要求的秘密管理方案。
 - 生产 API 文档需要认证；健康探针只返回最少状态，不返回数据库连接、Cookie 状态值或环境变量。
 - Worker 运行用户使用最小权限；平台浏览器配置目录仅挂载给 Worker。
 - 模型地址仅允许 HTTPS，并阻止 loopback、私网和云元数据地址；应用不跟随到受限网络的重定向。

@@ -20,6 +20,7 @@ import asyncio
 import subprocess
 import signal
 import os
+import sys
 from typing import Optional, List
 from datetime import datetime
 from pathlib import Path
@@ -90,7 +91,13 @@ class CrawlerManager:
             return "debug"
         return "info"
 
-    async def start(self, config: CrawlerStartRequest) -> bool:
+    async def start(
+        self,
+        config: CrawlerStartRequest,
+        *,
+        save_data_path: Optional[str] = None,
+        extra_env: Optional[dict] = None,
+    ) -> bool:
         """Start crawler process"""
         async with self._lock:
             if self.process and self.process.poll() is None:
@@ -111,7 +118,7 @@ class CrawlerManager:
                     pass
 
             # Build command line arguments
-            cmd = self._build_command(config)
+            cmd = self._build_command(config, save_data_path=save_data_path)
 
             # Log start information
             entry = self._create_log_entry(f"Starting crawler: {' '.join(cmd)}", "info")
@@ -127,7 +134,7 @@ class CrawlerManager:
                     encoding='utf-8',
                     bufsize=1,
                     cwd=str(self._project_root),
-                    env={**os.environ, "PYTHONUNBUFFERED": "1"}
+                    env={**os.environ, "PYTHONUNBUFFERED": "1", **(extra_env or {})}
                 )
 
                 self.status = "running"
@@ -202,9 +209,16 @@ class CrawlerManager:
             "error_message": None
         }
 
-    def _build_command(self, config: CrawlerStartRequest) -> list:
+    def _build_command(
+        self,
+        config: CrawlerStartRequest,
+        *,
+        save_data_path: Optional[str] = None,
+    ) -> list:
         """Build main.py command line arguments"""
-        cmd = ["uv", "run", "python", "main.py"]
+        # Reuse the interpreter running the API so Windows and cloud installs
+        # do not depend on a separate `uv` executable being on PATH.
+        cmd = [sys.executable, "main.py"]
 
         cmd.extend(["--platform", config.platform.value])
         cmd.extend(["--lt", config.login_type.value])
@@ -234,6 +248,9 @@ class CrawlerManager:
 
         if config.cookies:
             cmd.extend(["--cookies", config.cookies])
+
+        if save_data_path:
+            cmd.extend(["--save_data_path", save_data_path])
 
         cmd.extend(["--headless", "true" if config.headless else "false"])
 

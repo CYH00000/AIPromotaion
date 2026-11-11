@@ -145,9 +145,11 @@
 | GET /api/runs | 搜索运行记录。 |
 | GET /api/comments | 按平台、任务、时间、文本、作者和规则命中状态分页检索。 |
 | GET /api/comments/{id}/snapshots | 查看该评论历次快照。 |
-| POST /api/filter-rules/drafts | 由 AI 生成规则草稿。 |
-| POST /api/filter-rules/{id}/preview | 生成规则预览。 |
+| GET /api/filter-rules/config | 返回云模型是否配置及模型名，不返回密钥。 |
+| POST /api/filter-rules/drafts | 将自然语言转成包含摘要、正向信号、排除情形的规则草稿；响应即为可审阅预览。 |
+| GET /api/filter-rules/{id} | 获取规则草稿或已批准版本。 |
 | POST /api/filter-rules/{id}/approve | 用户批准并固化规则版本。 |
+| POST /api/tasks | 通过 `filter_rule_id` 绑定已批准规则；草稿 ID 会被拒绝。 |
 | GET /api/exports/comments?format=csv 或 xlsx | 按当前筛选条件导出。 |
 
 ## 7. 调度、并发与错误策略
@@ -155,6 +157,7 @@
 - 计划类型：manual-only、interval、cron；支持任务手动立即执行。
 - interval 使用正整数分钟/小时；初始最小间隔为 60 分钟，可按平台配置提高；只有经人工小范围验证后才可调整下限。Cron 按 Asia/Shanghai 解析。
 - 所有平台任务进入全局串行队列，避免账号并发和资源尖峰；平台间也先串行运行。
+- 启用 AI 规则时，只对通过关键词预筛的评论文本分批调用模型；不发送作者字段、平台会话或 Cookie。服务失败的评论不视作命中、不入库，运行标记部分完成。
 - 同一任务运行中再次到期时最多保留一个待执行项；服务中断期间的多个过期触发合并为一次，不补发洪峰。
 - 启动时从 PostgreSQL 恢复已启用计划；将上次运行中状态的 task_runs 标记为 interrupted，保留已写入结果。
 - 网络临时错误有限重试；登录失效、验证挑战、限流、账号限制、平台拒绝访问不自动重试、不自动切换代理或尝试绕过。

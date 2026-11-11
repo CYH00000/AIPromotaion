@@ -40,6 +40,7 @@ from proxy.proxy_ip_pool import IpInfoModel, create_ip_pool
 from store import xhs as xhs_store
 from tools import utils
 from tools.cdp_browser import CDPBrowserManager
+from tools.collection_limits import limit_page_items
 from var import crawler_type_var, source_keyword_var
 
 from . import media as xhs_media
@@ -138,15 +139,15 @@ class XiaoHongShuCrawler(AbstractCrawler):
         """Search for notes and retrieve their comment information."""
         utils.logger.info("[XiaoHongShuCrawler.search] Begin search Xiaohongshu keywords")
         xhs_limit_count = 20  # Xiaohongshu limit page fixed value
-        if config.CRAWLER_MAX_NOTES_COUNT < xhs_limit_count:
-            config.CRAWLER_MAX_NOTES_COUNT = xhs_limit_count
+        max_notes_count = config.CRAWLER_MAX_NOTES_COUNT
+        total_notes_count = 0
         start_page = config.START_PAGE
         for keyword in config.KEYWORDS.split(","):
             source_keyword_var.set(keyword)
             utils.logger.info(f"[XiaoHongShuCrawler.search] Current search keyword: {keyword}")
             page = 1
             search_id = get_search_id()
-            while (page - start_page + 1) * xhs_limit_count <= config.CRAWLER_MAX_NOTES_COUNT:
+            while total_notes_count < max_notes_count:
                 if page < start_page:
                     utils.logger.info(f"[XiaoHongShuCrawler.search] Skip page {page}")
                     page += 1
@@ -162,28 +163,44 @@ class XiaoHongShuCrawler(AbstractCrawler):
                         page=page,
                         sort=(SearchSortType(config.SORT_TYPE) if config.SORT_TYPE != "" else SearchSortType.GENERAL),
                     )
-                    utils.logger.info(f"[XiaoHongShuCrawler.search] Search notes response: {notes_res}")
+                    if os.getenv("COLLECTOR_PROJECT_MODE") == "1":
+                        utils.logger.info(
+                            f"[XiaoHongShuCrawler.search] Search response has_more={bool(notes_res and notes_res.get('has_more'))}"
+                        )
+                    else:
+                        utils.logger.info(f"[XiaoHongShuCrawler.search] Search notes response: {notes_res}")
                     if not notes_res or not notes_res.get("has_more", False):
                         utils.logger.info("[XiaoHongShuCrawler.search] No more content!")
                         break
                     semaphore = asyncio.Semaphore(config.MAX_CONCURRENCY_NUM)
+                    candidate_items = [
+                        post_item for post_item in notes_res.get("items", [])
+                        if post_item.get("model_type") not in ("rec_query", "hot_query")
+                    ]
+                    selected_items = limit_page_items(candidate_items, total_notes_count, max_notes_count)
                     task_list = [
                         self.get_note_detail_async_task(
                             note_id=post_item.get("id"),
                             xsec_source=post_item.get("xsec_source"),
                             xsec_token=post_item.get("xsec_token"),
                             semaphore=semaphore,
-                        ) for post_item in notes_res.get("items", {}) if post_item.get("model_type") not in ("rec_query", "hot_query")
+                        ) for post_item in selected_items
                     ]
                     note_details = await asyncio.gather(*task_list)
                     for note_detail in note_details:
                         if note_detail:
                             await xhs_store.update_xhs_note(note_detail)
                             await self.download_media(note_detail)
-                            note_ids.append(note_detail.get("note_id"))
-                            xsec_tokens.append(note_detail.get("xsec_token"))
+                            note_id = note_detail.get("note_id")
+                            if note_id:
+                                note_ids.append(note_id)
+                                xsec_tokens.append(note_detail.get("xsec_token"))
+                    total_notes_count += len(note_ids)
                     page += 1
-                    utils.logger.info(f"[XiaoHongShuCrawler.search] Note details: {note_details}")
+                    if os.getenv("COLLECTOR_PROJECT_MODE") == "1":
+                        utils.logger.info(f"[XiaoHongShuCrawler.search] Received {len(note_ids)} note details")
+                    else:
+                        utils.logger.info(f"[XiaoHongShuCrawler.search] Note details: {note_details}")
                     await self.batch_get_note_comments(note_ids, xsec_tokens)
 
                     # Sleep after each page navigation

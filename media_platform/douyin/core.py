@@ -38,6 +38,7 @@ from proxy.proxy_ip_pool import IpInfoModel, create_ip_pool
 from store import douyin as douyin_store
 from tools import utils
 from tools.cdp_browser import CDPBrowserManager
+from tools.collection_limits import limit_page_items
 from var import crawler_type_var, source_keyword_var
 
 from . import media as douyin_media
@@ -130,8 +131,8 @@ class DouYinCrawler(AbstractCrawler):
     async def search(self) -> None:
         utils.logger.info("[DouYinCrawler.search] Begin search douyin keywords")
         dy_limit_count = 10  # douyin limit page fixed value
-        if config.CRAWLER_MAX_NOTES_COUNT < dy_limit_count:
-            config.CRAWLER_MAX_NOTES_COUNT = dy_limit_count
+        max_notes_count = config.CRAWLER_MAX_NOTES_COUNT
+        total_notes_count = 0
         start_page = config.START_PAGE  # start page number
         for keyword in config.KEYWORDS.split(","):
             source_keyword_var.set(keyword)
@@ -139,7 +140,7 @@ class DouYinCrawler(AbstractCrawler):
             aweme_list: List[str] = []
             page = 0
             dy_search_id = ""
-            while (page - start_page + 1) * dy_limit_count <= config.CRAWLER_MAX_NOTES_COUNT:
+            while total_notes_count < max_notes_count:
                 if page < start_page:
                     utils.logger.info(f"[DouYinCrawler.search] Skip {page}")
                     page += 1
@@ -165,15 +166,21 @@ class DouYinCrawler(AbstractCrawler):
                     break
                 dy_search_id = posts_res.get("extra", {}).get("logid", "")
                 page_aweme_list = []
-                for post_item in posts_res.get("data"):
+                page_items = limit_page_items(posts_res.get("data", []), total_notes_count, max_notes_count)
+                for post_item in page_items:
                     try:
                         aweme_info: Dict = (post_item.get("aweme_info") or post_item.get("aweme_mix_info", {}).get("mix_items")[0])
                     except TypeError:
                         continue
-                    aweme_list.append(aweme_info.get("aweme_id", ""))
-                    page_aweme_list.append(aweme_info.get("aweme_id", ""))
+                    aweme_id = aweme_info.get("aweme_id")
+                    if not aweme_id:
+                        continue
+                    aweme_list.append(aweme_id)
+                    page_aweme_list.append(aweme_id)
                     await douyin_store.update_douyin_aweme(aweme_item=aweme_info)
                     await self.download_media(aweme_item=aweme_info)
+
+                total_notes_count += len(page_aweme_list)
                 
                 # Batch get note comments for the current page
                 await self.batch_get_note_comments(page_aweme_list)

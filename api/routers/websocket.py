@@ -22,6 +22,7 @@ from typing import Set, Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from ..services import crawler_manager
+from ..services.auth_service import AUTH_COOKIE, get_valid_session
 
 router = APIRouter(tags=["websocket"])
 
@@ -91,6 +92,10 @@ async def websocket_logs(websocket: WebSocket):
     """WebSocket log stream"""
     print("[WS] New connection attempt")
 
+    if await get_valid_session(websocket.cookies.get(AUTH_COOKIE)) is None:
+        await websocket.close(code=1008)
+        return
+
     try:
         # Ensure broadcast task is running
         start_broadcaster()
@@ -137,6 +142,9 @@ async def websocket_logs(websocket: WebSocket):
 @router.websocket("/ws/status")
 async def websocket_status(websocket: WebSocket):
     """WebSocket status stream"""
+    if await get_valid_session(websocket.cookies.get(AUTH_COOKIE)) is None:
+        await websocket.close(code=1008)
+        return
     await websocket.accept()
 
     try:

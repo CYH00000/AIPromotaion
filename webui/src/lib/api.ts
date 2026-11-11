@@ -3,10 +3,22 @@ import axios from 'axios'
 const api = axios.create({
   baseURL: '/api',
   timeout: 30000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 })
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const url = String(error?.config?.url ?? '')
+    if (error?.response?.status === 401 && !url.startsWith('/auth/')) {
+      window.dispatchEvent(new Event('collector:unauthorized'))
+    }
+    return Promise.reject(error)
+  },
+)
 
 // Types
 export interface CrawlerConfig {

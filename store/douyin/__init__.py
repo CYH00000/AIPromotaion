@@ -21,12 +21,14 @@
 # @Author  : relakkes@gmail.com
 # @Time    : 2024/1/14 18:46
 # @Desc    :
+import os
 from typing import List
 
 import config
 from media_platform.douyin.media import extract_cover_url, extract_image_urls, extract_video_urls
 from var import source_keyword_var
 from tools.user_hash import anonymize_user_id, mask_nickname
+from tools.project_author import public_author_fields
 
 from ._store_impl import *
 
@@ -147,6 +149,8 @@ async def update_dy_aweme_comment(aweme_id: str, comment_item: Dict):
         "parent_comment_id": parent_comment_id,
         "pictures": ",".join(_extract_comment_image_list(comment_item)),
     }
+    if os.getenv("COLLECTOR_PROJECT_MODE") == "1":
+        save_comment_item["project_author"] = public_author_fields("dy", user_info)
     utils.logger.info(f"[store.douyin.update_dy_aweme_comment] douyin aweme comment: {comment_id}, content: {save_comment_item.get('content')}")
 
     await DouyinStoreFactory.create_store().store_comment(comment_item=save_comment_item)

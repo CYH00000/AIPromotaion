@@ -112,7 +112,7 @@ export function LicenseDisclaimer({ onAccept }: LicenseDisclaimerProps) {
         {/* License Link */}
         <div className="flex justify-center mb-6">
           <a
-            href="https://github.com/NanmiCoder/MediaCrawler/blob/main/LICENSE"
+            href="https://github.com/NanmiCoder/MediaCrawler/blob/68d9ef1c1da22eab75940dfd7cec259907006538/LICENSE"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-cyber-neon-cyan hover:underline text-sm font-mono"

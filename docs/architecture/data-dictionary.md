@@ -1,32 +1,27 @@
-# 数据字典
+# 数据字典（本地 MVP）
 
-本文定义业务数据库的逻辑字段边界。实现时须与 MediaCrawler 固定版本的现有表结构做差异评估；不得直接覆盖上游模型或迁移。所有时间戳以 UTC 保存，页面转换为 `Asia/Shanghai`。数据库中的平台 ID 作为不透明字符串处理。
+业务表由 `migrations/` 中的 Alembic 迁移创建，统一使用 `collector_` 前缀，和 MediaCrawler 上游 ORM 元数据隔离。所有时间戳使用带时区的 UTC；Cron 计划按 `Asia/Shanghai` 解释。
 
-## 实体与约束
+## 表与字段
 
-| 实体 | 关键字段 | 约束与用途 |
+| 表 | 关键字段 | 约束与用途 |
 |---|---|---|
-| `platform_accounts` | `platform`, `status`, `secret_ref`, `checked_at` | 每个平台最多一条活动账号配置。账号密码、Cookie 和浏览器资料由秘密/私有存储管理；数据库只保存引用和非敏感状态。 |
-| `collection_tasks` | `platform`, `source_mode`, `source_config`, `limits`, `schedule`, `filter_config`, `state` | 一个任务只属于一个平台，来源模式只能是关键词或指定链接。计划配置可恢复；任务停用不删除已采数据。 |
-| `task_runs` | `task_id`, `trigger_type`, `status`, `config_snapshot`, `counts`, `error_code`, `safe_summary`, timestamps | 手动、interval、Cron 各次触发都形成记录。状态变更受状态机约束；错误摘要脱敏。 |
-| `contents` | `platform`, `external_content_id`, `title`, `canonical_url`, `first_seen_at` | 唯一键 `(platform, external_content_id)`。持久化链接去掉临时令牌和非稳定查询参数。 |
-| `authors` | `platform`, `platform_user_id`, `nickname`, `profile_url`, `updated_at` | 唯一键 `(platform, platform_user_id)`。仅允许这三个作者字段；字段缺失时为空，不推断。 |
-| `comments` | `platform`, `external_comment_id`, `content_id`, `author_id`, `body`, `comment_time`, match state | 唯一键 `(platform, external_comment_id)`。评论正文按原始文本保存以便搜索和重新筛选；不包含二级评论正文。 |
-| `comment_snapshots` | `comment_id`, `task_run_id`, `like_count`, `reply_count`, author snapshot, `observed_at` | 唯一键 `(comment_id, task_run_id)`。每次采集均记录观测值；保留获批的作者字段变化。 |
-| `filter_rule_versions` | `natural_language`, `rule_json`, `provider/model`, `status`, timestamps | 草稿必须经过预览和管理员批准；批准后的版本不可原位编辑。 |
-| `comment_rule_matches` | `comment_id`, `rule_version_id`, `matched`, `reason`, `evaluated_at` | 保存规则版本和判定结果，供结果筛选与审计；理由长度受限并以文本显示。 |
-| `admin_sessions` | session digest, created/expiry/revoked timestamps | 仅保存不可逆会话标识摘要及生命周期字段，不保存明文会话令牌。 |
+| `collector_tasks` | 平台、来源模式/值、包含/排除关键词、内容/评论上限、计划、状态、下次执行时间 | 任务停用只停止未来计划，不删除运行和评论。URL 在保存前去掉查询令牌。 |
+| `collector_filter_rules` | 规则 ID、谱系 ID/版本、父版本、自然语言意图、受限 JSON 定义、模型名、draft/approved 状态、批准时间 | 草稿不能绑定任务；批准后字段只读。编辑产生新的子版本。 |
+| `collector_runs` | `task_id`, `trigger_type`, `status`, `config_snapshot`, `counts`, `error_code`, `safe_summary` | 每次手动或计划执行一行；任务配置在开始时快照；运行状态包括 queued/running/succeeded/partial/failed/cancelled/interrupted。 |
+| `collector_comments` | 平台评论 ID、内容 ID/标题/链接、正文、评论时间、命中关键词、作者三字段 | 唯一键 `(platform, external_comment_id)`；无稳定平台评论 ID 的记录跳过。作者字段只包含平台用户 ID、昵称和主页 URL。 |
+| `collector_comment_snapshots` | `comment_id`, `run_id`, 点赞数、回复数、作者字段快照、命中关键词、规则 ID/版本、筛选理由、观测时间 | 唯一键 `(comment_id, run_id)`；重复入库更新该次快照，不产生重复行。 |
+| `collector_admin_sessions` | 会话摘要、CSRF 摘要、创建/过期/撤销时间 | 不存明文会话令牌；单管理员会话最长 12 小时。 |
 
-## 数据最小化与完整性规则
+## 数据最小化与完整性
 
-- 作者白名单严格限定为平台用户 ID、昵称、主页链接。未命中评论作者不做主页补充；作者信息不能获取时保存空值。
-- 模型请求只包含必要评论文本与规则上下文，不包含作者字段、Cookie、平台账号状态或数据库 ID。
-- 内容链接和主页链接进入数据库前做平台识别和规范化，去除临时签名/追踪参数；任何不支持链接明确报错，不猜造链接。
-- 无平台评论 ID 的评论不进入去重主表，计入运行的无效记录数量；不得用正文哈希替代平台 ID 作为评论身份。
-- 删除/停用任务不级联删除评论、快照或运行记录。当前设计不自动过期删除采集数据。
-- CSV/XLSX 导出只提供评论主记录、最新观测值及已批准的作者字段；对表格公式前缀做转义。
-- ORM/数据库迁移需为唯一键、外键和非负计数建立约束；重复采集使用幂等写入并在同一事务中记录快照。
+- 上游 MediaCrawler 的输出先写入每次运行独立的 JSONL 暂存目录；完成筛选和事务入库后立即删除暂存目录。
+- 业务库仅存命中包含/排除及已批准 AI 语义规则的评论及获批作者字段；不采集头像、签名、IP 属地、粉丝量或二级评论正文。语义服务失败的评论不入库。
+- 评论以平台评论 ID 去重；点赞数和回复数保存在每次运行快照。
+- URL 仅保留受支持平台的 HTTPS 主机与路径，移除查询参数和临时签名令牌。
+- CSV/XLSX 导出仅包含评论、内容标题/链接、最新互动数、作者白名单字段、命中词、语义规则版本/理由和最近观测时间；公式前缀会被转义。
+- 会话 Cookie 和模型密钥不写入日志或数据库明文。模型密钥保存在服务端 `.env`/部署密钥；API 只返回已配置状态。
 
-## 数据库迁移审查
+## 尚未单独规范化的目标实体
 
-新增字段时说明用途、数据来源、敏感等级、保留策略、索引和回滚方式。迁移不得把上游匿名化数据误当作获批作者字段；如需在上游匿名化前适配，须在代码审查中验证只将白名单字段送入业务数据库，且不会进入日志或上游通用数据库模型。
+完整设计曾规划 `contents`、`authors` 和 `comment_rule_matches`。本地 MVP 将内容与作者字段内嵌在 `collector_comments`，规则版本保存于 `collector_filter_rules`，规则匹配信息写入每次运行快照。
