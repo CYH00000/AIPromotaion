@@ -110,3 +110,19 @@ async def test_progress_loop_writes_staged_counts(tmp_path, monkeypatch):
     assert run.phase == "crawling"
     assert run.progress["staged_comments"] == 1
     assert run.progress["staged_contents"] == 0
+
+
+def test_recover_staging_moves_partial_data(tmp_path, monkeypatch):
+    monkeypatch.setattr(worker_module, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(
+        worker_module, "RECOVERED_RUNS_DIR", tmp_path / "data" / "recovered_runs"
+    )
+    staging = tmp_path / "data" / "project_runs" / "run-1"
+    staging.mkdir(parents=True)
+    (staging / "search_comments_test.jsonl").write_text('{"id":1}\n', encoding="utf-8")
+
+    worker_module.CollectionWorker._recover_staging(staging, "run-1")
+
+    assert not staging.exists()
+    recovered = tmp_path / "data" / "recovered_runs" / "run-1" / "search_comments_test.jsonl"
+    assert recovered.exists()

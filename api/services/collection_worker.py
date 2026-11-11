@@ -22,6 +22,7 @@ from database.collector_models import CollectionRun, CollectionTask, utc_now
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+RECOVERED_RUNS_DIR = PROJECT_ROOT / "data" / "recovered_runs"
 STALL_TIMEOUT_SECONDS = int(os.getenv("COLLECTOR_STALL_TIMEOUT_SECONDS", "180"))
 SEMANTIC_ERROR_LABELS = {
     "config": "配置错误",
@@ -56,23 +57,16 @@ class CollectionWorker:
             ]
         for run in interrupted:
             staging = PROJECT_ROOT / "data" / "project_runs" / run["id"]
-            counts = {}
-            if staging.exists():
-                try:
-                    counts = await ingest_staging_directory(
-                        run["id"], run["config"]["platform"], run["config"], staging
-                    )
-                except Exception as exc:
-                    print(f"Interrupted run recovery error: {type(exc).__name__}")
+            self._recover_staging(staging, run["id"])
             async with collector_session() as session:
                 stored = await session.get(CollectionRun, run["id"])
                 if stored and stored.status == "running":
                     stored.status = "interrupted"
                     stored.phase = "failed"
-                    stored.counts = counts
+                    stored.counts = {}
                     stored.progress = {**(stored.progress or {}), "stalled": False}
                     stored.finished_at = utc_now()
-                    stored.safe_summary = "服务在采集期间重启，已保留部分结果。"
+                    stored.safe_summary = "服务在采集期间重启；暂存数据已保留到恢复目录，可重新运行任务。"
         self._cleanup_stale_staging()
         self._stopping = False
         self._runner = asyncio.create_task(self._run_loop(), name="collector-run-worker")
@@ -305,6 +299,21 @@ class CollectionWorker:
             raise ValueError("Refusing to remove an unexpected staging path")
         if target.exists():
             shutil.rmtree(target)
+
+    @staticmethod
+    def _recover_staging(staging: Path, run_id: str) -> None:
+        root = (PROJECT_ROOT / "data" / "project_runs").resolve()
+        target = staging.resolve()
+        if target.parent != root or target == root or not target.exists():
+            return
+        try:
+            RECOVERED_RUNS_DIR.mkdir(parents=True, exist_ok=True)
+            destination = RECOVERED_RUNS_DIR / run_id
+            if destination.exists():
+                shutil.rmtree(destination)
+            shutil.move(str(target), str(destination))
+        except OSError as exc:
+            print(f"Interrupted staging recovery error: {type(exc).__name__}")
 
     def _cleanup_stale_staging(self) -> None:
         root = PROJECT_ROOT / "data" / "project_runs"
