@@ -55,6 +55,7 @@
 
 - [项目范围与当前状态](docs/project-overview.md)
 - [架构决策与路线图](docs/architecture/decisions.md)、[实施路线图](docs/architecture/roadmap.md)
+- [后续计划与未实现能力](docs/architecture/backlog.md)
 - [API 契约](docs/api/openapi.yaml)
 - [开发规范](docs/development/standards.md)
 - [部署说明](docs/deployment/cloud-deployment.md)
