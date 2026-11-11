@@ -11,9 +11,9 @@ import {
 type Theme = 'light' | 'dark' | 'system'
 
 const themes: { value: Theme; label: string; icon: typeof Sun }[] = [
-  { value: 'light', label: 'Light', icon: Sun },
-  { value: 'dark', label: 'Dark', icon: Moon },
-  { value: 'system', label: 'Auto', icon: Monitor },
+  { value: 'light', label: '浅色', icon: Sun },
+  { value: 'dark', label: '深色', icon: Moon },
+  { value: 'system', label: '自动', icon: Monitor },
 ]
 
 export function ThemeToggle() {
