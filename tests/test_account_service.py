@@ -35,6 +35,7 @@ def test_status_reads_marker_and_falls_back_to_directory(browser_root):
     items = {item["platform"]: item for item in account_service.account_status()}
 
     assert items["xhs"]["configured"] is True
+    assert items["xhs"]["profile_mode"] == "standard"
     assert items["xhs"]["last_login_at"].startswith("2026-11-11T08:00:00")
     assert items["dy"]["configured"] is False
 

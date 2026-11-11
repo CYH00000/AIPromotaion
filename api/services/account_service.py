@@ -111,6 +111,7 @@ def account_status() -> list[dict[str, Any]]:
                 "platform": platform,
                 "label": label,
                 "configured": configured,
+                "profile_mode": "cdp" if config.ENABLE_CDP_MODE else "standard",
                 "last_login_at": _iso(last_login),
                 "login_state": state["state"],
                 "login_started_at": _iso(state["started_at"]),

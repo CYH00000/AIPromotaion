@@ -91,6 +91,7 @@
       "platform": "dy",
       "label": "抖音",
       "configured": true,
+      "profile_mode": "cdp",
       "last_login_at": "2026-11-01T22:37:03Z",
       "login_state": "idle",
       "login_started_at": null,
@@ -100,6 +101,7 @@
       "platform": "xhs",
       "label": "小红书",
       "configured": false,
+      "profile_mode": "cdp",
       "last_login_at": null,
       "login_state": "idle",
       "login_started_at": null,
@@ -108,6 +110,8 @@
   ]
 }
 ```
+
+`profile_mode` 表示当前采集配置实际使用的浏览器配置目录类型：`cdp` 对应 `browser_data/cdp_<platform>_user_data_dir`，`standard` 对应 `browser_data/<platform>_user_data_dir`。切换 `ENABLE_CDP_MODE` 后，账号状态会随实际使用的目录变化。
 
 ### 5.2 启动扫码登录
 

@@ -76,6 +76,7 @@ export interface AccountInfo {
   platform: PlatformId
   label: string
   configured: boolean
+  profile_mode: 'cdp' | 'standard'
   last_login_at: string | null
   login_state: 'idle' | 'running' | 'succeeded' | 'failed'
   login_started_at: string | null

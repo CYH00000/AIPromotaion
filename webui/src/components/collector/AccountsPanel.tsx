@@ -105,7 +105,8 @@ export function AccountsPanel() {
               <div>
                 <p className="text-lg font-semibold text-cyber-text-primary">{account.label}</p>
                 <p className="mt-1 text-xs text-cyber-text-muted">
-                  {account.platform === 'dy' ? '抖音' : '小红书'} · 扫码登录
+                  {account.platform === 'dy' ? '抖音' : '小红书'} · 扫码登录 ·{' '}
+                  {account.profile_mode === 'cdp' ? 'CDP 模式' : '标准模式'}
                 </p>
               </div>
               <Badge variant={statusVariant(account)}>{statusLabel(account)}</Badge>
