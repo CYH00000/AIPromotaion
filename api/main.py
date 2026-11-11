@@ -163,33 +163,33 @@ async def check_environment():
         if process.returncode == 0:
             return {
                 "success": True,
-                "message": "MediaCrawler environment configured correctly",
+                "message": "采集环境检查通过",
                 "output": stdout.decode("utf-8", errors="ignore")[:500]  # Truncate to first 500 characters
             }
         else:
             error_msg = stderr.decode("utf-8", errors="ignore") or stdout.decode("utf-8", errors="ignore")
             return {
                 "success": False,
-                "message": "Environment check failed",
+                "message": "环境检查失败",
                 "error": error_msg[:500]
             }
     except asyncio.TimeoutError:
         return {
             "success": False,
-            "message": "Environment check timeout",
-            "error": "Command execution exceeded 30 seconds"
+            "message": "环境检查超时",
+            "error": "命令执行超过 30 秒"
         }
     except FileNotFoundError:
         return {
             "success": False,
-            "message": "uv command not found",
-            "error": "Please ensure uv is installed and configured in system PATH"
+            "message": "未找到 uv 命令",
+            "error": "请确认 uv 已安装并加入系统 PATH"
         }
     except Exception as e:
         return {
             "success": False,
-            "message": "Environment check error",
-            "error": f"{type(e).__name__}: {str(e) or 'Unknown'}"
+            "message": "环境检查异常",
+            "error": f"{type(e).__name__}: {str(e) or '未知错误'}"
         }
 
 
@@ -198,13 +198,13 @@ async def get_platforms():
     """Get list of supported platforms"""
     return {
         "platforms": [
-            {"value": "xhs", "label": "Xiaohongshu", "icon": "book-open"},
-            {"value": "dy", "label": "Douyin", "icon": "music"},
-            {"value": "ks", "label": "Kuaishou", "icon": "video"},
-            {"value": "bili", "label": "Bilibili", "icon": "tv"},
-            {"value": "wb", "label": "Weibo", "icon": "message-circle"},
-            {"value": "tieba", "label": "Baidu Tieba", "icon": "messages-square"},
-            {"value": "zhihu", "label": "Zhihu", "icon": "help-circle"},
+            {"value": "xhs", "label": "小红书", "icon": "book-open"},
+            {"value": "dy", "label": "抖音", "icon": "music"},
+            {"value": "ks", "label": "快手", "icon": "video"},
+            {"value": "bili", "label": "哔哩哔哩", "icon": "tv"},
+            {"value": "wb", "label": "微博", "icon": "message-circle"},
+            {"value": "tieba", "label": "百度贴吧", "icon": "messages-square"},
+            {"value": "zhihu", "label": "知乎", "icon": "help-circle"},
         ]
     }
 
@@ -214,22 +214,22 @@ async def get_config_options():
     """Get all configuration options"""
     return {
         "login_types": [
-            {"value": "qrcode", "label": "QR Code Login"},
-            {"value": "cookie", "label": "Cookie Login"},
+            {"value": "qrcode", "label": "扫码登录"},
+            {"value": "cookie", "label": "Cookie 登录"},
         ],
         "crawler_types": [
-            {"value": "search", "label": "Search Mode"},
-            {"value": "detail", "label": "Detail Mode"},
-            {"value": "creator", "label": "Creator Mode"},
+            {"value": "search", "label": "关键词搜索"},
+            {"value": "detail", "label": "指定内容"},
+            {"value": "creator", "label": "创作者主页"},
         ],
         "save_options": [
-            {"value": "jsonl", "label": "JSONL File"},
-            {"value": "json", "label": "JSON File"},
-            {"value": "csv", "label": "CSV File"},
-            {"value": "excel", "label": "Excel File"},
-            {"value": "sqlite", "label": "SQLite Database"},
-            {"value": "db", "label": "MySQL Database"},
-            {"value": "mongodb", "label": "MongoDB Database"},
+            {"value": "jsonl", "label": "JSONL 文件"},
+            {"value": "json", "label": "JSON 文件"},
+            {"value": "csv", "label": "CSV 文件"},
+            {"value": "excel", "label": "Excel 文件"},
+            {"value": "sqlite", "label": "SQLite 数据库"},
+            {"value": "db", "label": "MySQL 数据库"},
+            {"value": "mongodb", "label": "MongoDB 数据库"},
         ],
     }
 

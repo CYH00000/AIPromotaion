@@ -14,6 +14,8 @@ import {
 } from '@/lib/collectorApi'
 import { TaskFormDialog } from './TaskFormDialog'
 import { AccountsPanel } from './AccountsPanel'
+import { RunDetailDialog } from './RunDetailDialog'
+import { relativeTime, runPhaseLabel } from '@/lib/runFormat'
 
 type WorkspaceTab = 'tasks' | 'comments' | 'accounts'
 
@@ -48,6 +50,7 @@ export function CollectorWorkspace({ username, onLogout }: { username: string; o
   const [platformFilter, setPlatformFilter] = useState('')
   const [taskFilter, setTaskFilter] = useState('')
   const [editingTask, setEditingTask] = useState<CollectionTask | null | undefined>(undefined)
+  const [selectedRun, setSelectedRun] = useState<CollectionRun | null>(null)
   const [loading, setLoading] = useState(false)
 
   const refreshTasks = useCallback(async () => {
@@ -115,7 +118,7 @@ export function CollectorWorkspace({ username, onLogout }: { username: string; o
         platform: platformFilter || undefined,
         task_id: taskFilter || undefined,
       })
-      toast.success(`已导出 ${format.toUpperCase()} 文件`)
+      toast.success('已导出表格文件')
     } catch (error) {
       toast.error(apiErrorMessage(error))
     }
@@ -166,8 +169,8 @@ export function CollectorWorkspace({ username, onLogout }: { username: string; o
             </div>
           ) : tab === 'comments' ? (
             <div className="flex gap-2 pb-2">
-              <Button variant="outline" size="sm" onClick={() => exportComments('csv')}><Download />CSV</Button>
-              <Button variant="outline" size="sm" onClick={() => exportComments('xlsx')}><Download />Excel</Button>
+              <Button variant="outline" size="sm" onClick={() => exportComments('csv')}><Download />导出 CSV</Button>
+              <Button variant="outline" size="sm" onClick={() => exportComments('xlsx')}><Download />导出 Excel</Button>
             </div>
           ) : null}
         </div>
@@ -192,14 +195,32 @@ export function CollectorWorkspace({ username, onLogout }: { username: string; o
                         <td className="max-w-[320px] px-4 py-4">
                           <p className="line-clamp-2 break-all text-xs text-cyber-text-secondary">{task.source_values.join('、')}</p>
                           <div className="mt-2 flex flex-wrap gap-1">{task.include_keywords.map((word) => <Badge key={`i-${word}`}>{word}</Badge>)}{task.exclude_keywords.map((word) => <Badge key={`e-${word}`} variant="destructive">排除 {word}</Badge>)}{!task.include_keywords.length && !task.exclude_keywords.length && <span className="text-xs text-cyber-text-muted">未设置关键词筛选</span>}</div>
-                          {task.filter_rule && <p className="mt-2 text-xs leading-5 text-cyber-neon-cyan">AI 语义规则 v{task.filter_rule.version}：{task.filter_rule.definition.summary}</p>}
+                          {task.filter_rule && <p className="mt-2 text-xs leading-5 text-cyber-neon-cyan">语义规则 v{task.filter_rule.version}：{task.filter_rule.definition.summary}</p>}
                         </td>
                         <td className="px-4 py-4 text-xs text-cyber-text-secondary">
-                          <p>{task.schedule_type === 'manual' ? '仅手动' : task.schedule_type === 'interval' ? `每 ${task.schedule_value} 分钟` : `Cron ${task.schedule_value}`}</p>
+                          <p>{task.schedule_type === 'manual' ? '仅手动' : task.schedule_type === 'interval' ? `每 ${task.schedule_value} 分钟` : `定时 ${task.schedule_value}`}</p>
                           {task.next_run_at && <p className="mt-1 text-cyber-text-muted">下次 {formatDate(task.next_run_at)}</p>}
                         </td>
                         <td className="px-4 py-4">
-                          {latestRun ? <><Badge variant={runVariant(latestRun.status)}>{latestRun.status}</Badge><p className="mt-1 text-xs text-cyber-text-muted">{formatDate(latestRun.created_at)}</p><p className="mt-1 max-w-44 text-xs text-cyber-text-secondary">{latestRun.safe_summary ?? `${latestRun.counts.matched ?? 0} 条命中`}</p></> : <span className="text-xs text-cyber-text-muted">尚未运行</span>}
+                          {latestRun ? (
+                            <>
+                              <Badge variant={runVariant(latestRun.status)}>{runPhaseLabel(latestRun)}</Badge>
+                              <p className="mt-1 text-xs text-cyber-text-muted">{formatDate(latestRun.started_at ?? latestRun.created_at)}</p>
+                              {latestRun.status === 'running' || latestRun.status === 'queued' ? (
+                                <>
+                                  <p className="mt-1 text-xs text-cyber-text-secondary">
+                                    暂存 {latestRun.progress?.staged_comments ?? 0} 条 / {latestRun.progress?.staged_contents ?? 0} 条内容
+                                  </p>
+                                  <p className={`mt-1 text-xs ${latestRun.progress?.stalled ? 'text-cyber-neon-orange' : 'text-cyber-text-muted'}`}>
+                                    {latestRun.progress?.stalled ? '超过 3 分钟无活动' : `最近活动 ${relativeTime(latestRun.last_activity_at)}`}
+                                  </p>
+                                </>
+                              ) : (
+                                <p className="mt-1 max-w-44 text-xs text-cyber-text-secondary">{latestRun.safe_summary ?? `${latestRun.counts.matched ?? 0} 条命中`}</p>
+                              )}
+                              <Button variant="outline" size="sm" className="mt-2" onClick={() => setSelectedRun(latestRun)}>详情</Button>
+                            </>
+                          ) : <span className="text-xs text-cyber-text-muted">尚未运行</span>}
                         </td>
                         <td className="px-4 py-4"><Badge variant={taskStateVariant(task.state)}>{task.state === 'enabled' ? '启用' : task.state === 'paused' ? '暂停' : '停用'}</Badge></td>
                         <td className="px-4 py-4">
@@ -217,7 +238,7 @@ export function CollectorWorkspace({ username, onLogout }: { username: string; o
                 </table>
               </div>
             </Card>
-            <p className="text-xs leading-5 text-cyber-text-muted">定时任务按 Asia/Shanghai 时区执行。需要有效的平台登录态；遇到验证或限流时任务会停止并保留已有结果。系统不会绕过平台验证。</p>
+            <p className="text-xs leading-5 text-cyber-text-muted">定时任务按上海时区（Asia/Shanghai）执行。需要有效的平台登录态；遇到验证或限流时任务会停止并保留已有结果。系统不会绕过平台验证。</p>
           </section>
         ) : tab === 'comments' ? (
           <section className="space-y-4">
@@ -241,13 +262,13 @@ export function CollectorWorkspace({ username, onLogout }: { username: string; o
                       </td>
                       <td className="px-4 py-4 text-xs">
                         <p className="text-cyber-text-primary">{comment.author_nickname || '未知昵称'}</p>
-                        {comment.author_user_id && <p className="mt-1 break-all text-cyber-text-muted">ID: {comment.author_user_id}</p>}
+                        {comment.author_user_id && <p className="mt-1 break-all text-cyber-text-muted">用户 ID：{comment.author_user_id}</p>}
                         {comment.author_profile_url && <a className="mt-1 inline-block text-cyber-neon-cyan hover:underline" href={comment.author_profile_url} target="_blank" rel="noreferrer">作者主页</a>}
                       </td>
                       <td className="whitespace-nowrap px-4 py-4 text-xs text-cyber-text-secondary">赞 {comment.latest_like_count}<br />回复 {comment.latest_reply_count}</td>
                       <td className="px-4 py-4">
                         <div className="flex max-w-56 flex-wrap gap-1">{comment.matched_keywords.length ? comment.matched_keywords.map((word) => <Badge key={word}>{word}</Badge>) : !comment.filter_rule_version && <span className="text-xs text-cyber-text-muted">默认通过</span>}</div>
-                        {comment.filter_rule_version && <p className="mt-2 text-xs text-cyber-neon-cyan">AI 语义规则 v{comment.filter_rule_version}</p>}
+                        {comment.filter_rule_version && <p className="mt-2 text-xs text-cyber-neon-cyan">语义规则 v{comment.filter_rule_version}</p>}
                         {comment.filter_reason && <p className="mt-1 max-w-56 text-xs leading-5 text-cyber-text-muted">{comment.filter_reason}</p>}
                       </td>
                       <td className="whitespace-nowrap px-4 py-4 text-xs text-cyber-text-muted"><p>评论 {formatDate(comment.comment_time)}</p><p className="mt-1">采集 {formatDate(comment.last_observed_at)}</p></td>
@@ -267,6 +288,7 @@ export function CollectorWorkspace({ username, onLogout }: { username: string; o
         )}
       </div>
       {editingTask !== undefined && <TaskFormDialog task={editingTask} onClose={() => setEditingTask(undefined)} onSaved={refreshTasks} />}
+      <RunDetailDialog run={selectedRun} onClose={() => setSelectedRun(null)} onChanged={refreshTasks} />
     </main>
   )
 }

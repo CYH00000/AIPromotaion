@@ -46,11 +46,26 @@ export interface CollectionRun {
   task_id: string
   trigger_type: string
   status: string
+  phase: string
   counts: Record<string, number>
+  progress: {
+    staged_contents?: number
+    staged_comments?: number
+    stalled?: boolean
+    last_log_id?: number
+  }
   safe_summary: string | null
+  last_activity_at: string | null
   created_at: string
   started_at: string | null
   finished_at: string | null
+}
+
+export interface CrawlerLog {
+  id: number
+  timestamp: string
+  level: string
+  message: string
 }
 
 export interface CollectedComment {
@@ -98,6 +113,32 @@ export interface TaskPayload {
 }
 
 let csrfToken = ''
+
+const API_ERROR_MESSAGES: Record<string, string> = {
+  'Authentication required': '请先登录',
+  'Invalid credentials': '用户名或密码错误',
+  'CSRF validation failed': '请求校验失败，请刷新页面后重试',
+  'Try again later': '尝试次数过多，请稍后再试',
+  'Task not found': '任务不存在',
+  'Task is paused or disabled': '任务已暂停或停用',
+  'Run not found': '运行记录不存在',
+  'Run is already finished': '运行已经结束',
+  'Comment not found': '评论不存在',
+  'Filter rule not found.': '筛选规则不存在',
+  'Previous filter rule not found.': '上一版筛选规则不存在',
+  'Approve the AI filter rule before using it.': '请先确认并应用智能筛选规则',
+  'AI model is not configured on the server.': '服务端尚未配置智能筛选模型',
+  'Crawler is already running': '采集进程已在运行',
+  'No crawler is running': '当前没有采集进程在运行',
+  'Failed to start crawler': '启动采集进程失败',
+  'Failed to stop crawler': '停止采集进程失败',
+  'Required service is unavailable': '依赖服务不可用',
+  'Access denied': '访问被拒绝',
+  'File not found': '文件不存在',
+  'Not a file': '目标不是文件',
+  'Invalid JSON file': 'JSON 文件无效',
+  'Unsupported file type for preview': '不支持预览该文件类型',
+}
 
 export const authApi = {
   async csrf() {
@@ -154,6 +195,14 @@ export const collectorApi = {
     })
     return response.data.items
   },
+  cancelRun: (runId: string) =>
+    mutate<{ run_id: string; status: string }>(`/runs/${runId}/cancel`),
+  async logs(limit = 50) {
+    const response = await api.get<{ logs: CrawlerLog[] }>('/crawler/logs', {
+      params: { limit },
+    })
+    return response.data.logs
+  },
   async comments(params: { q?: string; platform?: string; task_id?: string; offset?: number }) {
     const response = await api.get<{ items: CollectedComment[]; total: number; limit: number; offset: number }>(
       '/comments',
@@ -205,7 +254,8 @@ export const filterRulesApi = {
 export function apiErrorMessage(error: unknown): string {
   if (typeof error === 'object' && error !== null && 'response' in error) {
     const response = (error as { response?: { data?: { detail?: string } } }).response
-    return response?.data?.detail ?? '请求失败，请检查服务状态后重试。'
+    const detail = response?.data?.detail
+    return (detail && API_ERROR_MESSAGES[detail]) || detail || '请求失败，请检查服务状态后重试。'
   }
   return error instanceof Error ? error.message : '请求失败。'
 }

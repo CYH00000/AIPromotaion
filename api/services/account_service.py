@@ -47,7 +47,7 @@ _login_tasks: dict[str, asyncio.Task[None]] = {}
 
 def _require_platform(platform: str) -> str:
     if platform not in PLATFORM_LABELS:
-        raise AccountPlatformError(f"Unsupported platform: {platform}")
+        raise AccountPlatformError(f"不支持的平台：{platform}")
     return platform
 
 
@@ -124,7 +124,7 @@ def account_status() -> list[dict[str, Any]]:
 async def start_login(platform: str) -> dict[str, str]:
     _require_platform(platform)
     if login_active() or _process_running():
-        raise AccountBusyError("A collector process is already running.")
+        raise AccountBusyError("已有采集或登录进程正在运行，请等待当前任务结束。")
 
     started_at = datetime.now(timezone.utc)
     state = _login_states[platform]
@@ -140,8 +140,8 @@ async def start_login(platform: str) -> dict[str, str]:
     )
     started = await crawler_manager.start(request)
     if not started:
-        state.update({"state": "failed", "error": "Could not start the login process."})
-        raise AccountBusyError("A collector process is already running.")
+        state.update({"state": "failed", "error": "无法启动登录进程。"})
+        raise AccountBusyError("已有采集或登录进程正在运行，请等待当前任务结束。")
 
     _login_tasks[platform] = asyncio.create_task(_watch_login(platform, started_at))
     return {"platform": platform, "status": "started"}
@@ -171,7 +171,7 @@ async def _watch_login(platform: str, started_at: datetime) -> None:
         state.update(
             {
                 "state": "failed",
-                "error": "Sign-in did not complete. Check the browser window and try again.",
+                "error": "登录未完成，请检查浏览器窗口后重试。",
             }
         )
 
@@ -179,16 +179,16 @@ async def _watch_login(platform: str, started_at: datetime) -> None:
 async def unbind(platform: str) -> None:
     _require_platform(platform)
     if login_active() or _process_running():
-        raise AccountBusyError("A collector process is already running.")
+        raise AccountBusyError("已有采集或登录进程正在运行，请等待当前任务结束。")
 
     profile = profile_dir(platform)
     resolved = profile.resolve()
     root = BROWSER_DATA_DIR.resolve()
     if resolved.parent != root or resolved == root:
-        raise AccountPlatformError("Refusing to remove an unexpected path.")
+        raise AccountPlatformError("拒绝删除非账号配置目录。")
     if resolved.exists():
         if not resolved.is_dir():
-            raise AccountPlatformError("Refusing to remove a non-directory target.")
+            raise AccountPlatformError("拒绝删除非目录目标。")
         shutil.rmtree(resolved)
 
     try:

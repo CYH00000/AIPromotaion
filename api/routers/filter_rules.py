@@ -50,7 +50,7 @@ async def create_filter_rule_draft(
 ):
     config = model_configuration()
     if not config["configured"]:
-        raise HTTPException(status_code=503, detail="AI model is not configured on the server.")
+        raise HTTPException(status_code=503, detail="服务端尚未配置智能筛选模型。")
     try:
         definition = await generate_filter_definition(payload.intent)
     except FilterModelError as exc:
@@ -63,7 +63,7 @@ async def create_filter_rule_draft(
         if payload.supersedes_rule_id:
             previous = await session.get(CollectionFilterRule, payload.supersedes_rule_id)
             if previous is None:
-                raise HTTPException(status_code=404, detail="Previous filter rule not found.")
+                raise HTTPException(status_code=404, detail="上一版筛选规则不存在。")
             version = previous.version + 1
             lineage_id = previous.lineage_id
         rule = CollectionFilterRule(
@@ -85,7 +85,7 @@ async def get_filter_rule(rule_id: str):
     async with collector_session() as session:
         rule = await session.get(CollectionFilterRule, rule_id)
         if rule is None:
-            raise HTTPException(status_code=404, detail="Filter rule not found.")
+            raise HTTPException(status_code=404, detail="筛选规则不存在。")
         return _rule_view(rule)
 
 
@@ -94,7 +94,7 @@ async def approve_filter_rule(rule_id: str, _csrf: None = Depends(require_csrf))
     async with collector_session() as session:
         rule = await session.get(CollectionFilterRule, rule_id)
         if rule is None:
-            raise HTTPException(status_code=404, detail="Filter rule not found.")
+            raise HTTPException(status_code=404, detail="筛选规则不存在。")
         if rule.status == "draft":
             rule.status = "approved"
             rule.approved_at = utc_now()

@@ -51,22 +51,22 @@ async def _validate_cloud_endpoint(base_url: str) -> str:
         or parts.fragment
         or (parts.port not in (None, 443))
     ):
-        raise FilterModelError("AI endpoint must be a public HTTPS URL on port 443.")
+        raise FilterModelError("智能筛选接口必须是 443 端口的公网 HTTPS 地址。")
     try:
         address = ipaddress.ip_address(host)
     except ValueError:
         address = None
     if address is not None:
-        raise FilterModelError("AI endpoint must use a public DNS hostname.")
+        raise FilterModelError("智能筛选接口必须使用公网域名。")
     try:
         records = await asyncio.to_thread(
             socket.getaddrinfo, host, 443, type=socket.SOCK_STREAM
         )
         addresses = {ipaddress.ip_address(record[4][0]) for record in records}
     except (OSError, ValueError) as exc:
-        raise FilterModelError("AI endpoint hostname could not be resolved.") from exc
+        raise FilterModelError("无法解析智能筛选接口域名。") from exc
     if not addresses or any(not address.is_global for address in addresses):
-        raise FilterModelError("AI endpoint must resolve only to public IP addresses.")
+        raise FilterModelError("智能筛选接口只能解析到公网地址。")
     return f"{base_url}/chat/completions"
 
 
@@ -77,7 +77,7 @@ async def _request_json(
 ) -> dict:
     config = model_configuration()
     if not config["configured"]:
-        raise FilterModelError("AI model is not configured. Set the AI_FILTER_* values in .env and restart the API.")
+        raise FilterModelError("尚未配置智能筛选模型，请在服务端 .env 中设置相关参数并重启服务。")
     url = await _validate_cloud_endpoint(config["base_url"])
     payload = {
         "model": model_name or config["model_name"],
@@ -99,17 +99,17 @@ async def _request_json(
                 json=payload,
             ) as response:
                 if 300 <= response.status_code < 400:
-                    raise FilterModelError("AI provider redirects are not allowed.")
+                    raise FilterModelError("不允许智能筛选服务重定向。")
                 response.raise_for_status()
                 content = bytearray()
                 async for chunk in response.aiter_bytes():
                     content.extend(chunk)
                     if len(content) > 256 * 1024:
-                        raise FilterModelError("AI provider response exceeded the allowed size.")
+                        raise FilterModelError("智能筛选服务返回内容超过大小限制。")
     except FilterModelError:
         raise
     except (httpx.HTTPError, OSError) as exc:
-        raise FilterModelError("AI provider request failed. Check the provider settings and try again.") from exc
+        raise FilterModelError("智能筛选服务请求失败，请检查配置后重试。") from exc
 
     try:
         envelope = json.loads(content)
@@ -118,7 +118,7 @@ async def _request_json(
             raise ValueError("Model response content is not text")
         return json.loads(message)
     except (KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
-        raise FilterModelError("AI provider returned an invalid JSON response.") from exc
+        raise FilterModelError("智能筛选服务返回了无效的 JSON 数据。") from exc
 
 
 async def generate_filter_definition(intent: str) -> FilterRuleDefinition:
@@ -137,7 +137,7 @@ async def generate_filter_definition(intent: str) -> FilterRuleDefinition:
             await _request_json(system_prompt, {"intent": intent})
         )
     except (ValueError, TypeError) as exc:
-        raise FilterModelError("AI provider could not create a valid rule preview. Try a clearer description.") from exc
+        raise FilterModelError("智能筛选服务未能生成有效的规则预览，请把描述写得更清楚。") from exc
 
 
 async def evaluate_comment_batch(rule: dict, comments: list[dict]) -> list[dict]:
@@ -163,5 +163,5 @@ async def evaluate_comment_batch(rule: dict, comments: list[dict]) -> list[dict]
     decisions = [item.model_dump() for item in result.decisions]
     returned = [item["index"] for item in decisions]
     if len(returned) != len(submitted) or set(returned) != submitted:
-        raise FilterModelError("AI provider returned an incomplete classification batch.")
+        raise FilterModelError("智能筛选服务返回的分类结果不完整。")
     return decisions

@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
 import { useCrawlerStore } from '@/store/crawlerStore'
 import { useCrawlerStatus } from '@/hooks/useCrawler'
-import { LanguageSwitch } from './LanguageSwitch'
 import { ThemeToggle } from './ThemeToggle'
 
 interface SidebarProps {
@@ -59,8 +58,6 @@ export function Sidebar({ onShowDisclaimer }: SidebarProps) {
         <div className="flex items-center gap-3">
           {/* Theme Toggle */}
           <ThemeToggle />
-          {/* Language Switch */}
-          <LanguageSwitch />
 
           {/* Status Info */}
           <div className="hidden lg:flex items-center gap-2 text-xs font-mono">

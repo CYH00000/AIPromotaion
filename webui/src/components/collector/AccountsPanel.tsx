@@ -96,7 +96,7 @@ export function AccountsPanel() {
   return (
     <section className="space-y-4">
       <Card className="p-4 text-xs leading-5 text-cyber-text-muted">
-        登录态保存在本机 browser_data 配置目录。状态只表示本地配置存在，实际有效性由任务运行时的平台检查确认。
+        登录态保存在本机浏览器配置目录。状态只表示本地配置存在，实际有效性由任务运行时的平台检查确认。
       </Card>
       <div className="grid gap-3 md:grid-cols-2">
         {accounts.map((account) => (
@@ -106,7 +106,7 @@ export function AccountsPanel() {
                 <p className="text-lg font-semibold text-cyber-text-primary">{account.label}</p>
                 <p className="mt-1 text-xs text-cyber-text-muted">
                   {account.platform === 'dy' ? '抖音' : '小红书'} · 扫码登录 ·{' '}
-                  {account.profile_mode === 'cdp' ? 'CDP 模式' : '标准模式'}
+                  {account.profile_mode === 'cdp' ? '浏览器接管模式' : '标准模式'}
                 </p>
               </div>
               <Badge variant={statusVariant(account)}>{statusLabel(account)}</Badge>

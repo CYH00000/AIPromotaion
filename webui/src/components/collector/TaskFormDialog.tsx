@@ -105,7 +105,7 @@ export function TaskFormDialog({ task, onClose, onSaved }: TaskFormDialogProps) 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (semanticIntent.trim() && (!filterRule || filterRule.intent !== semanticIntent.trim())) {
-      setAgentError('先生成规则预览并点击“确认并应用此规则”，再保存任务；也可以清空描述，不启用 AI 语义筛选。')
+      setAgentError('先生成规则预览并点击“确认并应用此规则”，再保存任务；也可以清空描述，不启用智能语义筛选。')
       return
     }
     setBusy(true)
@@ -184,12 +184,12 @@ export function TaskFormDialog({ task, onClose, onSaved }: TaskFormDialogProps) 
           </div>
           <section className="space-y-3 rounded-lg border border-cyber-border-DEFAULT bg-cyber-bg-tertiary/60 p-4">
             <div>
-              <h3 className="text-sm font-semibold text-cyber-text-primary">AI 评论筛选 Agent</h3>
-              <p className="mt-1 text-xs leading-5 text-cyber-text-muted">用自然语言描述你想筛选的评论。Agent 先生成规则预览；只有确认后才会应用到任务。采集时，命中关键词预筛的评论文本会发送给配置的云端模型判断，作者信息不会发送。</p>
+              <h3 className="text-sm font-semibold text-cyber-text-primary">智能评论筛选助手</h3>
+              <p className="mt-1 text-xs leading-5 text-cyber-text-muted">用自然语言描述你想筛选的评论。助手先生成规则预览；只有确认后才会应用到任务。采集时，命中关键词预筛的评论文本会发送给配置的云端模型判断，作者信息不会发送。</p>
             </div>
             <div className="flex items-center justify-between gap-3 text-xs">
               <span className={modelConfigured ? 'text-cyber-neon-green' : 'text-amber-300'}>
-                {modelConfigured ? `模型已配置${modelName ? `：${modelName}` : ''}` : '模型未配置：请在服务端 .env 设置 AI_FILTER_API_BASE_URL、AI_FILTER_API_KEY、AI_FILTER_MODEL'}
+                {modelConfigured ? `模型已配置${modelName ? `：${modelName}` : ''}` : '模型未配置：请在服务端 .env 设置智能筛选接口地址、密钥和模型名称'}
               </span>
               {filterRule && <span className="text-cyber-text-muted">当前已批准 v{filterRule.version}</span>}
             </div>
@@ -246,11 +246,11 @@ export function TaskFormDialog({ task, onClose, onSaved }: TaskFormDialogProps) 
             <label className="block space-y-1.5 text-sm text-cyber-text-secondary">
               运行计划
               <select className={fieldClass} value={scheduleType} onChange={(event) => setScheduleType(event.target.value as TaskPayload['schedule_type'])}>
-                <option value="manual">仅手动</option><option value="interval">固定间隔</option><option value="cron">Cron 表达式</option>
+                <option value="manual">仅手动</option><option value="interval">固定间隔</option><option value="cron">定时表达式</option>
               </select>
             </label>
             {scheduleType !== 'manual' && <label className="block space-y-1.5 text-sm text-cyber-text-secondary">
-              {scheduleType === 'interval' ? '间隔分钟（至少 60）' : 'Cron（5 段，Asia/Shanghai）'}
+              {scheduleType === 'interval' ? '间隔分钟（至少 60）' : '定时表达式（5 段，上海时区）'}
               <Input value={scheduleValue} onChange={(event) => setScheduleValue(event.target.value)} required placeholder={scheduleType === 'interval' ? '例如 360' : '例如 0 9 * * *'} />
             </label>}
           </div>

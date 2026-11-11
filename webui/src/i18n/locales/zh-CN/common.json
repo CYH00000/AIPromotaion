@@ -9,7 +9,7 @@
   },
   "sidebar": {
     "title": "评论采集工作台",
-    "api": "API",
+    "api": "接口版本",
     "local": "本地",
     "disclaimer": "仅供个人学习研究使用，禁止商业用途",
     "license": "查看协议"

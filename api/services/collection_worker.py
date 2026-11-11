@@ -59,7 +59,7 @@ class CollectionWorker:
                     stored.counts = counts
                     stored.progress = {**(stored.progress or {}), "stalled": False}
                     stored.finished_at = utc_now()
-                    stored.safe_summary = "Service restarted during collection; partial results were retained."
+                    stored.safe_summary = "服务在采集期间重启，已保留部分结果。"
         self._cleanup_stale_staging()
         self._stopping = False
         self._runner = asyncio.create_task(self._run_loop(), name="collector-run-worker")
@@ -126,7 +126,7 @@ class CollectionWorker:
             if task is None or task.state == "disabled":
                 run.status = "cancelled"
                 run.finished_at = utc_now()
-                run.safe_summary = "Task is no longer available."
+                run.safe_summary = "任务已不可用。"
                 return None
             run.status = "running"
             run.started_at = utc_now()
@@ -220,18 +220,18 @@ class CollectionWorker:
             if cancelled:
                 status = "cancelled"
                 error_code = None
-                summary = "Collection was cancelled; already collected records were retained."
+                summary = "采集已取消，已采集的记录已保留。"
             elif exit_code == 0:
                 if counts.get("semantic_failed", 0):
                     status = "partial"
                     error_code = "semantic_evaluation_failed"
-                    summary = "Some comments could not be semantically evaluated and were not saved."
+                    summary = "部分评论未能完成智能语义判断，未保存。"
                 else:
-                    status, error_code, summary = "succeeded", None, "Collection finished."
+                    status, error_code, summary = "succeeded", None, "采集完成。"
             elif counts["matched"]:
-                status, error_code, summary = "partial", f"crawler_exit_{exit_code}", "Collection stopped with partial results; saved records were retained."
+                status, error_code, summary = "partial", f"crawler_exit_{exit_code}", "采集中断，已保存部分结果。"
             else:
-                status, error_code, summary = "failed", f"crawler_exit_{exit_code}", "Upstream collector exited with an error."
+                status, error_code, summary = "failed", f"crawler_exit_{exit_code}", "上游采集器异常退出。"
             progress_task.cancel()
             await asyncio.gather(progress_task, return_exceptions=True)
             await self._finish_run(run["run_id"], status, counts, error_code, summary)
