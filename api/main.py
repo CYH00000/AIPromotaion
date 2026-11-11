@@ -40,7 +40,7 @@ from fastapi.responses import FileResponse
 from fastapi import HTTPException
 from sqlalchemy import text
 
-from .routers import auth_router, collection_router, crawler_router, data_router, filter_rules_router, websocket_router
+from .routers import accounts_router, auth_router, collection_router, crawler_router, data_router, filter_rules_router, websocket_router
 from .services.auth_service import require_admin
 from .services.collection_worker import collection_worker
 from database.collector_database import apply_collector_migrations, close_collector_database, engine
@@ -94,6 +94,7 @@ app.include_router(websocket_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(collection_router, prefix="/api")
 app.include_router(filter_rules_router, prefix="/api")
+app.include_router(accounts_router, prefix="/api")
 
 
 @app.get("/")

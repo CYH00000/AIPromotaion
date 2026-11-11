@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import select
 
 from api.schemas.crawler import CrawlerStartRequest, CrawlerTypeEnum, LoginTypeEnum, PlatformEnum, SaveDataOptionEnum
+from api.services.account_service import login_active
 from api.services.collection_pipeline import ingest_staging_directory
 from api.services.crawler_manager import crawler_manager
 from api.services.task_service import create_run, next_scheduled_time
@@ -103,6 +104,8 @@ class CollectionWorker:
             await asyncio.sleep(5)
 
     async def _claim_next_run(self) -> dict[str, Any] | None:
+        if login_active():
+            return None
         async with collector_session() as session:
             result = await session.execute(
                 select(CollectionRun)
