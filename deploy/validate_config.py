@@ -4,13 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import shlex
 import sys
 from collections.abc import Mapping
 from pathlib import Path
 from urllib.parse import urlparse
-
-from dotenv import dotenv_values
-
 
 REQUIRED_KEYS = (
     "POSTGRES_DB_NAME",
@@ -76,8 +74,30 @@ def validate_environment(values: Mapping[str, object]) -> list[str]:
 def load_environment(path: Path) -> dict[str, str]:
     if not path.is_file():
         raise FileNotFoundError(f"生产配置文件不存在：{path}")
-    values = dotenv_values(path, interpolate=False)
-    return {key: str(value) if value is not None else "" for key, value in values.items()}
+    values: dict[str, str] = {}
+    for raw_line in path.read_text(encoding="utf-8-sig").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line.removeprefix("export ").lstrip()
+        if "=" not in line:
+            continue
+        key, raw_value = line.split("=", 1)
+        key = key.strip()
+        if not key.replace("_", "").isalnum():
+            continue
+        raw_value = raw_value.strip()
+        if raw_value[:1] in {"'", '"'}:
+            try:
+                parts = shlex.split(raw_value, comments=True, posix=True)
+            except ValueError as exc:
+                raise ValueError(f"生产配置文件第 {raw_line!r} 行格式无效") from exc
+            value = parts[0] if parts else ""
+        else:
+            value = raw_value.split(" #", 1)[0].rstrip()
+        values[key] = value
+    return values
 
 
 def main(argv: list[str] | None = None) -> int:

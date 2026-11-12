@@ -133,3 +133,18 @@ def test_dockerignore_excludes_local_data_and_secrets():
     dockerignore = Path(".dockerignore").read_text(encoding="utf-8")
     for entry in (".git", ".venv", "webui/node_modules", "browser_data", "data", "deploy/.env.production", "deploy/backups"):
         assert entry in dockerignore
+
+
+def test_host_scripts_are_safe_and_relative_to_project_root():
+    for name in ("prepare.sh", "deploy.sh", "status.sh", "logs.sh", "setup-tailscale.sh", "upgrade.sh"):
+        text = Path("deploy", name).read_text(encoding="utf-8")
+        assert text.startswith("#!/usr/bin/env bash")
+        assert "set -euo pipefail" in text
+        assert "deploy/.env.production" not in text
+
+
+def test_tailscale_setup_uses_loopback_upstreams():
+    text = Path("deploy/setup-tailscale.sh").read_text(encoding="utf-8")
+    assert "http://127.0.0.1:" in text
+    assert "tailscale serve" in text
+    assert "0.0.0.0" not in text
