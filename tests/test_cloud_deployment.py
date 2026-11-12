@@ -102,3 +102,34 @@ def test_compose_uses_private_persistent_storage_and_healthchecks():
     assert set(compose["volumes"]) == {"postgres_data", "browser_data", "project_data"}
     assert services["postgres"]["volumes"] == ["postgres_data:/var/lib/postgresql"]
     assert services["app"]["depends_on"]["postgres"]["condition"] == "service_healthy"
+
+
+def test_compose_keeps_database_private_while_allowing_platform_egress():
+    compose = load_production_compose()
+    services = compose["services"]
+    assert services["app"]["networks"] == ["collector_private", "collector_egress"]
+    assert services["postgres"]["networks"] == ["collector_private"]
+    assert compose["networks"]["collector_private"]["internal"] is True
+    assert compose["networks"]["collector_egress"].get("internal", False) is False
+
+
+def test_entrypoint_supervises_all_private_services():
+    script = Path("deploy/container-entrypoint.sh").read_text(encoding="utf-8")
+    for command in ("Xvfb :99", "x11vnc", "websockify", "alembic upgrade head", "uvicorn"):
+        assert command in script
+    assert "wait -n" in script
+    assert "trap cleanup" in script
+
+
+def test_dockerfile_builds_webui_and_uses_playwright_image():
+    dockerfile = Path("deploy/Dockerfile").read_text(encoding="utf-8")
+    assert "FROM node:22-bookworm-slim AS webui" in dockerfile
+    assert "mcr.microsoft.com/playwright/python:v1.61.0-noble" in dockerfile
+    assert "npm ci" in dockerfile
+    assert "uv sync --frozen --no-install-project" in dockerfile
+
+
+def test_dockerignore_excludes_local_data_and_secrets():
+    dockerignore = Path(".dockerignore").read_text(encoding="utf-8")
+    for entry in (".git", ".venv", "webui/node_modules", "browser_data", "data", "deploy/.env.production", "deploy/backups"):
+        assert entry in dockerignore

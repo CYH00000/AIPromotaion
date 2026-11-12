@@ -46,6 +46,7 @@ services:
         max-file: "5"
     networks:
       - collector_private
+      - collector_egress
 
   postgres:
     image: postgres:18
@@ -82,3 +83,5 @@ networks:
   collector_private:
     driver: bridge
     internal: true
+  collector_egress:
+    driver: bridge
