@@ -6,7 +6,7 @@ export HOME="${HOME:-/home/collector}"
 
 readonly APP_ROOT="/app"
 readonly VNC_PASSWORD_FILE="/tmp/collector-vnc.pass"
-readonly SERVICES=()
+SERVICES=()
 
 
 log() {

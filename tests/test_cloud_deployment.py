@@ -119,6 +119,7 @@ def test_entrypoint_supervises_all_private_services():
         assert command in script
     assert "wait -n" in script
     assert "trap cleanup" in script
+    assert "readonly SERVICES" not in script
 
 
 def test_dockerfile_builds_webui_and_uses_playwright_image():
@@ -127,6 +128,7 @@ def test_dockerfile_builds_webui_and_uses_playwright_image():
     assert "mcr.microsoft.com/playwright/python:v1.61.0-noble" in dockerfile
     assert "npm ci" in dockerfile
     assert "uv sync --frozen --no-install-project" in dockerfile
+    assert 'ENTRYPOINT ["/app/deploy/container-entrypoint.sh"]' in dockerfile
 
 
 def test_dockerignore_excludes_local_data_and_secrets():
@@ -148,3 +150,42 @@ def test_tailscale_setup_uses_loopback_upstreams():
     assert "http://127.0.0.1:" in text
     assert "tailscale serve" in text
     assert "0.0.0.0" not in text
+
+
+def test_backup_encrypts_every_data_artifact_and_requires_passphrase():
+    backup = Path("deploy/backup.sh").read_text(encoding="utf-8")
+    assert "pg_dump" in backup
+    assert "openssl enc -aes-256-cbc" in backup
+    assert "BACKUP_PASSPHRASE_FILE" in backup
+    assert "browser_data" in backup
+    assert "project_data" in backup
+    assert "chmod 700" in backup
+    assert "compose exec -T app tar" not in backup
+    assert "compose run --rm -T --no-deps --entrypoint sh app" in backup
+    assert "gzip -t" in backup
+    assert 'docker image inspect "${COLLECTOR_IMAGE}"' in backup
+
+
+def test_restore_requires_explicit_confirmation_and_preserves_private_volumes():
+    restore = Path("deploy/restore.sh").read_text(encoding="utf-8")
+    assert '"$1" != "--confirm"' in restore
+    assert "pg_restore" in restore
+    assert "browser_data" in restore
+    assert "project_data" in restore
+    assert 'docker image inspect "${COLLECTOR_IMAGE}"' in restore
+
+
+def test_backup_uses_openssl_compatible_passphrase_paths():
+    library = Path("deploy/lib.sh").read_text(encoding="utf-8")
+    backup = Path("deploy/backup.sh").read_text(encoding="utf-8")
+    restore = Path("deploy/restore.sh").read_text(encoding="utf-8")
+    assert "openssl_passphrase_path" in library
+    assert "openssl_passphrase_file" in backup
+    assert "openssl_passphrase_file" in restore
+
+
+def test_lifecycle_scripts_resolve_the_deployed_commit_image():
+    library = Path("deploy/lib.sh").read_text(encoding="utf-8")
+    assert "COLLECTOR_IMAGE" in library
+    assert "rev-parse --short=12 HEAD" in library
+    assert "collector-cloud-app:${release_commit}" in library

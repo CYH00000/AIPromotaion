@@ -19,8 +19,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     DISPLAY=:99 \
     HOME=/home/collector
 
-COPY --from=ghcr.io/astral-sh/uv:0.9.5 /uv /uvx /usr/local/bin/
-
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -32,6 +30,7 @@ RUN apt-get update \
         x11-utils \
         x11vnc \
         xvfb \
+    && python -m pip install --no-cache-dir uv==0.9.5 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -43,8 +42,8 @@ COPY . .
 COPY --from=webui /build/api/webui ./api/webui
 
 RUN groupadd --gid 10001 collector \
-    && useradd --uid 10001 --gid collector --create-home --shell /usr/sbin/nologin collector \
-    && mkdir -p /app/browser_data /app/data \
+    && useradd --uid 10001 --gid collector --home-dir /home/collector --no-create-home --shell /usr/sbin/nologin collector \
+    && install -d -o 10001 -g 10001 /home/collector /app/browser_data /app/data \
     && chown -R 10001:10001 /app /home/collector \
     && chmod 0755 /app/deploy/container-entrypoint.sh
 
@@ -52,4 +51,4 @@ USER 10001:10001
 
 EXPOSE 8080 6080
 
-ENTRYPOINT ["/usr/bin/tini", "--", "/app/deploy/container-entrypoint.sh"]
+ENTRYPOINT ["/app/deploy/container-entrypoint.sh"]

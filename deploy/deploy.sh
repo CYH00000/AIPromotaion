@@ -21,7 +21,7 @@ compose up -d --no-deps postgres
 wait_for_container_health postgres 60
 
 info "正在执行数据库迁移"
-compose run --rm --no-deps --entrypoint /app/.venv/bin/alembic app upgrade head
+compose run --rm --no-deps --entrypoint sh app -c 'cd /app && .venv/bin/alembic upgrade head'
 
 info "正在启动应用与浏览器运行时"
 compose up -d --no-deps app
