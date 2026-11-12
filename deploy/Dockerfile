@@ -14,8 +14,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple \
-    UV_DEFAULT_INDEX=https://mirrors.aliyun.com/pypi/simple \
-    UV_HTTP_TIMEOUT=300 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PROJECT_ENVIRONMENT=/app/.venv \
@@ -39,7 +37,9 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY pyproject.toml uv.lock README.md ./
-RUN uv sync --frozen --no-install-project
+RUN UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple \
+    UV_HTTP_TIMEOUT=300 \
+    uv sync --frozen --no-install-project
 
 COPY . .
 COPY --from=webui /build/api/webui ./api/webui
