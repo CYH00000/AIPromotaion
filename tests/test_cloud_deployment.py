@@ -147,6 +147,14 @@ def test_dockerignore_keeps_python_cache_package_for_platform_imports():
     assert Path("cache/abs_cache.py").is_file()
 
 
+def test_nginx_serves_novnc_entry_page_and_assets_under_vnc_prefix():
+    config = Path("deploy/nginx-automl.vip.conf").read_text(encoding="utf-8")
+    assert "location = /vnc/" in config
+    assert "proxy_pass http://127.0.0.1:6080/vnc.html;" in config
+    assert "location /vnc/" in config
+    assert "proxy_pass http://127.0.0.1:6080/;" in config
+
+
 def test_host_scripts_are_safe_and_relative_to_project_root():
     for name in ("prepare.sh", "deploy.sh", "status.sh", "logs.sh", "setup-tailscale.sh", "upgrade.sh"):
         text = Path("deploy", name).read_text(encoding="utf-8")
