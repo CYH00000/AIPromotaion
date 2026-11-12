@@ -37,7 +37,8 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY pyproject.toml uv.lock README.md ./
-RUN UV_DEFAULT_INDEX=https://mirrors.aliyun.com/pypi/simple \
+RUN sed -i 's#https://files.pythonhosted.org#https://mirrors.cloud.tencent.com/pypi#g' uv.lock \
+    && UV_DEFAULT_INDEX=https://mirrors.cloud.tencent.com/pypi/simple \
     UV_HTTP_TIMEOUT=300 \
     UV_HTTP_RETRIES=5 \
     UV_CONCURRENT_DOWNLOADS=2 \
