@@ -15,6 +15,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple \
     UV_DEFAULT_INDEX=https://mirrors.aliyun.com/pypi/simple \
+    UV_HTTP_TIMEOUT=300 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PROJECT_ENVIRONMENT=/app/.venv \
