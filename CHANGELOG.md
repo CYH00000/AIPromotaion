@@ -19,6 +19,11 @@ software release.
 - Platform account management for Douyin and Xiaohongshu: QR login, local profile status, profile mode, and unbind.
 - Runtime observability for collection runs: phase, staged content/comment counts, last activity, stalled warning, recent logs, and stop action.
 - Chinese-only management UI and localized API error summaries.
+- Production configuration validation for private Ubuntu deployment, including secret quality, Secure cookies and AI endpoint boundaries.
+- Docker Compose topology with private PostgreSQL networking, separate application egress, persistent volumes and loopback-only app/noVNC ports.
+- Non-root Playwright container bundling Chromium, Xvfb, x11vnc, noVNC and a supervised Uvicorn runtime.
+- Tailscale Serve lifecycle scripts for private HTTPS access, plus status, bounded logs, upgrade and rollback operations.
+- Encrypted PostgreSQL/browser/project backups with checksums and an explicitly confirmed restore workflow.
 
 ### Changed
 
@@ -30,6 +35,7 @@ software release.
 - Paused tasks can still be run manually; only disabled tasks are blocked.
 - Interrupted runs preserve staging data under `data/recovered_runs/` without blocking API startup.
 - Collection scheduling now runs one worker per platform: tasks on the same platform stay serial, while Douyin and Xiaohongshu can collect concurrently.
+- Cloud deployment defaults to private Tailscale HTTPS and intentionally leaves the existing public domain unused until a separate public-access review.
 
 ### Fixed
 
@@ -39,4 +45,4 @@ software release.
 
 ### Deferred
 
-- Cloud HTTPS deployment hardening, incremental ingestion during a run, run-history browsing, snapshot diff browsing, cookie-paste login, and embedded QR login remain outside the current local MVP.
+- Real Ubuntu cloud-host acceptance, public-domain access, cloud administrator/user management, incremental ingestion during a run, run-history browsing, snapshot diff browsing, cookie-paste login, and embedded QR login remain outside this release.

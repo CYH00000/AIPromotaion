@@ -189,3 +189,10 @@ def test_lifecycle_scripts_resolve_the_deployed_commit_image():
     assert "COLLECTOR_IMAGE" in library
     assert "rev-parse --short=12 HEAD" in library
     assert "collector-cloud-app:${release_commit}" in library
+
+
+def test_runbook_documents_private_access_and_critical_operations():
+    text = Path("docs/deployment/cloud-deployment.md").read_text(encoding="utf-8")
+    for phrase in ("Tailscale Serve", "noVNC", "backup.sh", "restore.sh", "upgrade.sh", "9222"):
+        assert phrase in text
+    assert "公网开放 8080" not in text
