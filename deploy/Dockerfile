@@ -13,6 +13,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple \
+    UV_DEFAULT_INDEX=https://mirrors.aliyun.com/pypi/simple \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PROJECT_ENVIRONMENT=/app/.venv \
@@ -30,7 +32,7 @@ RUN apt-get update \
         x11-utils \
         x11vnc \
         xvfb \
-    && python -m pip install --no-cache-dir uv==0.9.5 \
+    && python -m pip install --no-cache-dir --index-url "${PIP_INDEX_URL}" uv==0.9.5 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
