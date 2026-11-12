@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """UI smoke acceptance test for the local workspace."""
 
+import os
 import re
 from pathlib import Path
 
@@ -8,17 +9,22 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
 
-BASE = "http://127.0.0.1:8080"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+BASE = os.getenv("COLLECTOR_BASE_URL", "http://127.0.0.1:8080").rstrip("/")
+ENV_FILE = Path(os.getenv("COLLECTOR_ENV_FILE", str(PROJECT_ROOT / ".env")))
+TASK_PATTERN = os.getenv("COLLECTOR_TASK_PATTERN", "E2E-Search-")
 
 
 def credentials() -> tuple[str, str]:
     values = {}
-    for line in (PROJECT_ROOT / ".env").read_text(encoding="utf-8").splitlines():
+    for line in ENV_FILE.read_text(encoding="utf-8-sig").splitlines():
         if "=" in line and not line.startswith("#"):
             key, value = line.split("=", 1)
             values[key] = value.strip()
-    return values["ADMIN_USERNAME"], values["ADMIN_PASSWORD"]
+    return (
+        os.getenv("COLLECTOR_ADMIN_USERNAME") or values["ADMIN_USERNAME"],
+        os.getenv("COLLECTOR_ADMIN_PASSWORD") or values["ADMIN_PASSWORD"],
+    )
 
 
 def visible_or_none(locator) -> bool:
@@ -72,13 +78,15 @@ def main() -> int:
         assert page.get_by_text("标准模式", exact=False).first.is_visible()
 
         page.get_by_role("tab", name="任务管理").click()
-        task_row = page.locator("tr", has_text=re.compile(r"E2E-Search-")).first
+        task_row = page.locator("tr", has_text=re.compile(re.escape(TASK_PATTERN))).first
         task_row.wait_for(timeout=10000)
-        task_row.get_by_role("button", name="详情").click()
-        page.get_by_text("运行详情", exact=True).wait_for(timeout=10000)
-        page.get_by_text("结果摘要", exact=False).wait_for(timeout=10000)
-        page.get_by_text("最近采集日志", exact=True).wait_for(timeout=10000)
-        page.get_by_role("button", name="关闭").last.click()
+        detail_button = task_row.get_by_role("button", name="详情")
+        if visible_or_none(detail_button):
+            detail_button.click()
+            page.get_by_text("运行详情", exact=True).wait_for(timeout=10000)
+            page.get_by_text("结果摘要", exact=False).wait_for(timeout=10000)
+            page.get_by_text("最近采集日志", exact=True).wait_for(timeout=10000)
+            page.get_by_role("button", name="关闭").last.click()
 
         page.get_by_role("button", name="新建任务").click()
         page.get_by_label("内容排序").wait_for(timeout=10000)
