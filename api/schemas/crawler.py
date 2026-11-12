@@ -86,9 +86,11 @@ class CrawlerStatusResponse(BaseModel):
     """Crawler status response"""
     status: Literal["idle", "running", "stopping", "error"]
     platform: Optional[str] = None
+    current_run_id: Optional[str] = None
     crawler_type: Optional[str] = None
     started_at: Optional[str] = None
     error_message: Optional[str] = None
+    platforms: Optional[list[dict]] = None
 
 
 class LogEntry(BaseModel):
@@ -97,6 +99,8 @@ class LogEntry(BaseModel):
     timestamp: str
     level: Literal["info", "warning", "error", "success", "debug"]
     message: str
+    platform: Optional[str] = None
+    run_id: Optional[str] = None
 
 
 class DataFileInfo(BaseModel):

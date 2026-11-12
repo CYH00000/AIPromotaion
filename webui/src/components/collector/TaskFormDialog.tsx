@@ -7,6 +7,7 @@ import {
   filterRulesApi,
   type CollectionTask,
   type FilterRule,
+  type PlatformCapability,
   type PlatformId,
   type TaskPayload,
 } from '@/lib/collectorApi'
@@ -23,6 +24,11 @@ interface TaskFormDialogProps {
 
 const fieldClass = 'w-full rounded-md border border-cyber-border-DEFAULT bg-cyber-bg-tertiary px-3 py-2 text-sm text-cyber-text-primary outline-none focus:border-cyber-neon-cyan'
 
+const FALLBACK_PLATFORMS: PlatformCapability[] = [
+  { platform: 'xhs', label: '小红书', source_modes: ['search', 'detail'], login_supported: true, content_filters_supported: true },
+  { platform: 'dy', label: '抖音', source_modes: ['search', 'detail'], login_supported: true, content_filters_supported: true },
+]
+
 function splitLines(value: string) {
   return value.split(/[\r\n,]+/).map((part) => part.trim()).filter(Boolean)
 }
@@ -30,6 +36,7 @@ function splitLines(value: string) {
 export function TaskFormDialog({ task, onClose, onSaved }: TaskFormDialogProps) {
   const [name, setName] = useState(task?.name ?? '')
   const [platform, setPlatform] = useState<PlatformId>(task?.platform ?? 'xhs')
+  const [platformOptions, setPlatformOptions] = useState<PlatformCapability[]>(FALLBACK_PLATFORMS)
   const [sourceMode, setSourceMode] = useState<'search' | 'detail'>(task?.source_mode ?? 'search')
   const [sources, setSources] = useState(task?.source_values.join('\n') ?? '')
   const [includeKeywords, setIncludeKeywords] = useState(task?.include_keywords.join('\n') ?? '')
@@ -77,7 +84,15 @@ export function TaskFormDialog({ task, onClose, onSaved }: TaskFormDialogProps) 
       setModelConfigured(false)
       setModelName(null)
     })
+    collectorApi.platformCapabilities().then(setPlatformOptions).catch(() => {
+      setPlatformOptions(FALLBACK_PLATFORMS)
+    })
   }, [])
+
+  useEffect(() => {
+    const modes = platformOptions.find((item) => item.platform === platform)?.source_modes
+    if (modes?.length && !modes.includes(sourceMode)) setSourceMode(modes[0])
+  }, [platform, platformOptions, sourceMode])
 
   const generateRule = async () => {
     setAgentBusy(true)
@@ -168,13 +183,14 @@ export function TaskFormDialog({ task, onClose, onSaved }: TaskFormDialogProps) 
             <label className="block space-y-1.5 text-sm text-cyber-text-secondary">
               平台
               <select className={fieldClass} value={platform} onChange={(event) => setPlatform(event.target.value as PlatformId)} disabled={!!task}>
-                <option value="xhs">小红书</option><option value="dy">抖音</option>
+                {platformOptions.map((item) => <option key={item.platform} value={item.platform}>{item.label}</option>)}
               </select>
             </label>
             <label className="block space-y-1.5 text-sm text-cyber-text-secondary">
               采集来源
               <select className={fieldClass} value={sourceMode} onChange={(event) => setSourceMode(event.target.value as 'search' | 'detail')} disabled={!!task}>
-                <option value="search">关键词搜索</option><option value="detail">指定笔记 / 视频链接</option>
+                {platformOptions.find((item) => item.platform === platform)?.source_modes.includes('search') && <option value="search">关键词搜索</option>}
+                {platformOptions.find((item) => item.platform === platform)?.source_modes.includes('detail') && <option value="detail">指定笔记 / 视频链接</option>}
               </select>
             </label>
           </div>
@@ -182,7 +198,7 @@ export function TaskFormDialog({ task, onClose, onSaved }: TaskFormDialogProps) 
             {sourceMode === 'search' ? '关键词' : '内容链接'}
             <textarea className={`${fieldClass} min-h-24 resize-y`} value={sources} onChange={(event) => setSources(event.target.value)} required placeholder={sourceMode === 'search' ? '每行一个关键词' : '每行一个内容链接'} />
           </label>
-          {sourceMode === 'search' ? (
+          {sourceMode === 'search' && platformOptions.find((item) => item.platform === platform)?.content_filters_supported ? (
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block space-y-1.5 text-sm text-cyber-text-secondary">
                 内容排序
@@ -197,9 +213,9 @@ export function TaskFormDialog({ task, onClose, onSaved }: TaskFormDialogProps) 
                 </select>
               </label>
             </div>
-          ) : (
+          ) : sourceMode === 'detail' ? (
             <p className="text-xs leading-5 text-cyber-text-muted">指定链接模式按你提供的链接采集，排序和时间筛选不生效。</p>
-          )}
+          ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block space-y-1.5 text-sm text-cyber-text-secondary">
               包含词（任意命中）

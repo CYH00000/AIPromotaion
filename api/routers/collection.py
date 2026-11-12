@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.schemas.collection import TaskCreate, TaskPatch, TaskView
 from api.services.auth_service import require_admin, require_csrf
-from api.services.collection_worker import collection_worker
+from api.services.platform_runtime import collection_worker_supervisor
 from api.services.task_service import create_run, next_scheduled_time, run_to_dict, task_to_dict
 from database.collector_database import collector_session
 from database.collector_models import (
@@ -166,8 +166,18 @@ async def cancel_run(run_id: str, _csrf: None = Depends(require_csrf)):
         else:
             raise HTTPException(status_code=409, detail="Run is already finished")
         response = {"run_id": run.id, "status": run.status, "cancel_requested": run.cancel_requested}
-    await collection_worker.request_cancel(run_id)
+    await collection_worker_supervisor.request_cancel(run_id)
     return response
+
+
+@router.get("/platforms")
+async def list_platform_capabilities():
+    return {"items": collection_worker_supervisor.platform_capabilities()}
+
+
+@router.get("/platforms/status")
+async def list_platform_statuses():
+    return {"items": await collection_worker_supervisor.platform_statuses()}
 
 
 async def _query_comments(

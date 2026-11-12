@@ -11,7 +11,8 @@ software release.
 
 - PostgreSQL 18 local service, Alembic-managed project tables, admin sessions, collection tasks/runs, deduplicated comments, and run snapshots.
 - Authenticated FastAPI endpoints for task management, run cancellation, comment search, history, CSV and XLSX export.
-- Serial task worker with persisted interval/Cron schedules that resumes enabled tasks after restarts.
+- Per-platform runtimes with persisted interval/Cron schedules that resume enabled tasks after restarts.
+- Platform status and capability APIs, plus isolated per-platform logs and run cancellation.
 - Local React task/result workspace and single-admin login screen, built on the existing MediaCrawler WebUI.
 - Keyword include/exclude filtering, allowlisted author fields, stable URL normalization, and formula-safe exports.
 - Task-level content sort (general/latest/most liked) and publish window (unlimited/day/week/six months) for keyword searches.
@@ -28,6 +29,7 @@ software release.
 - A failed semantic batch now affects only that batch; later batches continue and the failure code is shown in the run UI.
 - Paused tasks can still be run manually; only disabled tasks are blocked.
 - Interrupted runs preserve staging data under `data/recovered_runs/` without blocking API startup.
+- Collection scheduling now runs one worker per platform: tasks on the same platform stay serial, while Douyin and Xiaohongshu can collect concurrently.
 
 ### Fixed
 
@@ -37,4 +39,4 @@ software release.
 
 ### Deferred
 
-- Cloud HTTPS deployment hardening, per-platform parallelism, incremental ingestion during a run, run-history browsing, snapshot diff browsing, cookie-paste login, and embedded QR login remain outside the current local MVP.
+- Cloud HTTPS deployment hardening, incremental ingestion during a run, run-history browsing, snapshot diff browsing, cookie-paste login, and embedded QR login remain outside the current local MVP.

@@ -32,12 +32,12 @@ export function useStartCrawler() {
       setStatus('running')
     },
     onSuccess: () => {
-      toast.success('Crawler started successfully')
+      toast.success('采集任务已启动')
       queryClient.invalidateQueries({ queryKey: ['crawlerStatus'] })
     },
     onError: (error: Error) => {
       setStatus('idle')
-      toast.error(`Failed to start crawler: ${error.message}`)
+      toast.error(`启动采集任务失败：${error.message}`)
     },
   })
 }
@@ -52,12 +52,12 @@ export function useStopCrawler() {
       setStatus('stopping')
     },
     onSuccess: () => {
-      toast.success('Crawler stopped')
+      toast.success('采集任务已停止')
       setStatus('idle')
       queryClient.invalidateQueries({ queryKey: ['crawlerStatus'] })
     },
     onError: (error: Error) => {
-      toast.error(`Failed to stop crawler: ${error.message}`)
+      toast.error(`停止采集任务失败：${error.message}`)
     },
   })
 }

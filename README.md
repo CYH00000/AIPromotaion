@@ -8,6 +8,7 @@
 - 手动执行、固定间隔和 Cron 定时；支持暂停、恢复、查看最近运行和运行详情。
 - 平台账号管理：抖音/小红书扫码登录、配置状态查看和解绑；登录态保存在本机浏览器配置目录。
 - 运行观测：查看当前阶段、暂存内容/评论数、最近活动时间、最近日志，并可停止运行。
+- 按平台并行：抖音和小红书各有一个独立运行时，同平台任务严格按顺序执行，不同平台可同时采集；登录、取消、日志和账号解绑互不阻塞。
 - 按包含词和排除词筛选评论。
 - 新增任务可用智能助手把自然语言转成语义规则，预览并确认后才生效；模型调用支持超时重试和批次失败隔离。
 - 评论主记录去重，并保存每次运行的观察快照。
@@ -65,8 +66,9 @@
 
 ## 开发验证
 
-    uv run --env-file .env pytest tests/test_collection_limits.py tests/test_collection_pipeline.py tests/test_project_config_security.py tests/test_task_contracts.py tests/test_account_service.py tests/test_account_api.py tests/test_run_progress.py tests/test_ai_filter_resilience.py tests/test_content_filter_options.py -q
+    uv run --env-file .env pytest tests -q
     Push-Location webui
     npm ci
+    npm run lint
     npm run build
     Pop-Location

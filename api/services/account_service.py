@@ -17,12 +17,15 @@ from api.schemas.crawler import (
     PlatformEnum,
     SaveDataOptionEnum,
 )
-from api.services.crawler_manager import crawler_manager
+from api.platforms import PLATFORM_DEFINITIONS
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 BROWSER_DATA_DIR = PROJECT_ROOT / "browser_data"
-PLATFORM_LABELS = {"dy": "抖音", "xhs": "小红书"}
+PLATFORM_LABELS = {
+    platform_id: definition.label
+    for platform_id, definition in PLATFORM_DEFINITIONS.items()
+}
 PLATFORMS = tuple(PLATFORM_LABELS)
 
 
@@ -88,13 +91,20 @@ def _iso(value: datetime | None) -> str | None:
     return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z") if value else None
 
 
-def _process_running() -> bool:
-    process = crawler_manager.process
+def _manager_for(platform: str):
+    from api.services.platform_runtime import platform_runtime_registry
+
+    return platform_runtime_registry.get(platform).manager
+
+
+def _process_running(platform: str) -> bool:
+    process = _manager_for(platform).process
     return process is not None and process.poll() is None
 
 
-def login_active() -> bool:
-    return any(state["state"] == "running" for state in _login_states.values())
+def login_active(platform: str) -> bool:
+    _require_platform(platform)
+    return _login_states[platform]["state"] == "running"
 
 
 def account_status() -> list[dict[str, Any]]:
@@ -123,8 +133,10 @@ def account_status() -> list[dict[str, Any]]:
 
 async def start_login(platform: str) -> dict[str, str]:
     _require_platform(platform)
-    if login_active() or _process_running():
-        raise AccountBusyError("已有采集或登录进程正在运行，请等待当前任务结束。")
+    if login_active(platform) or _process_running(platform):
+        raise AccountBusyError(
+            f"{PLATFORM_LABELS[platform]}已有采集或登录进程，请等待当前进程结束。"
+        )
 
     started_at = datetime.now(timezone.utc)
     state = _login_states[platform]
@@ -138,22 +150,25 @@ async def start_login(platform: str) -> dict[str, str]:
         headless=False,
         login_only=True,
     )
-    started = await crawler_manager.start(request)
+    manager = _manager_for(platform)
+    started = await manager.start(request)
     if not started:
         state.update({"state": "failed", "error": "无法启动登录进程。"})
         raise AccountBusyError("已有采集或登录进程正在运行，请等待当前任务结束。")
 
-    _login_tasks[platform] = asyncio.create_task(_watch_login(platform, started_at))
+    _login_tasks[platform] = asyncio.create_task(
+        _watch_login(platform, started_at, manager)
+    )
     return {"platform": platform, "status": "started"}
 
 
-async def _watch_login(platform: str, started_at: datetime) -> None:
-    process = crawler_manager.process
+async def _watch_login(platform: str, started_at: datetime, manager) -> None:
+    process = manager.process
     if process is not None:
         await asyncio.to_thread(process.wait)
-        if crawler_manager._read_task:
+        if manager._read_task:
             try:
-                await crawler_manager._read_task
+                await manager._read_task
             except Exception:
                 pass
 
@@ -178,8 +193,10 @@ async def _watch_login(platform: str, started_at: datetime) -> None:
 
 async def unbind(platform: str) -> None:
     _require_platform(platform)
-    if login_active() or _process_running():
-        raise AccountBusyError("已有采集或登录进程正在运行，请等待当前任务结束。")
+    if login_active(platform) or _process_running(platform):
+        raise AccountBusyError(
+            f"{PLATFORM_LABELS[platform]}已有采集或登录进程，请等待当前进程结束。"
+        )
 
     profile = profile_dir(platform)
     resolved = profile.resolve()

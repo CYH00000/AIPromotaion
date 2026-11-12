@@ -65,10 +65,24 @@ async def test_unbind_rejects_path_outside_browser_data(browser_root, monkeypatc
 
 @pytest.mark.asyncio
 async def test_login_rejects_busy_process(browser_root, monkeypatch):
+    from api.services.platform_runtime import platform_runtime_registry
+
     class RunningProcess:
         def poll(self):
             return None
 
-    monkeypatch.setattr(account_service.crawler_manager, "process", RunningProcess())
+    monkeypatch.setattr(
+        platform_runtime_registry.get("dy").manager,
+        "process",
+        RunningProcess(),
+    )
     with pytest.raises(account_service.AccountBusyError):
         await account_service.start_login("dy")
+
+
+def test_login_busy_state_is_scoped_to_platform(browser_root):
+    account_service._login_states["dy"].update({"state": "running"})
+    account_service._login_states["xhs"].update({"state": "idle"})
+
+    assert account_service.login_active("dy") is True
+    assert account_service.login_active("xhs") is False

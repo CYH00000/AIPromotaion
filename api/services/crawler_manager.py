@@ -31,10 +31,13 @@ from ..schemas import CrawlerStartRequest, LogEntry
 class CrawlerManager:
     """Crawler process manager"""
 
-    def __init__(self):
+    def __init__(self, platform: str = "dy"):
+        self.platform = platform
+        self.current_run_id: Optional[str] = None
         self._lock = asyncio.Lock()
         self.process: Optional[subprocess.Popen] = None
         self.status = "idle"
+        self.error_message: Optional[str] = None
         self.started_at: Optional[datetime] = None
         self.current_config: Optional[CrawlerStartRequest] = None
         self._log_id = 0
@@ -62,7 +65,9 @@ class CrawlerManager:
             id=self._log_id,
             timestamp=datetime.now().strftime("%H:%M:%S"),
             level=level,
-            message=message
+            message=message,
+            platform=self.platform,
+            run_id=self.current_run_id,
         )
         self._logs.append(entry)
         # Keep last 500 logs
@@ -97,15 +102,15 @@ class CrawlerManager:
         *,
         save_data_path: Optional[str] = None,
         extra_env: Optional[dict] = None,
+        run_id: Optional[str] = None,
     ) -> bool:
         """Start crawler process"""
         async with self._lock:
             if self.process and self.process.poll() is None:
                 return False
 
-            # Clear old logs
-            self._logs = []
-            self._log_id = 0
+            self.error_message = None
+            self.current_run_id = run_id or (extra_env or {}).get("COLLECTOR_RUN_ID")
 
             # Clear pending queue (don't replace object to avoid WebSocket broadcast coroutine holding old queue reference)
             if self._log_queue is None:
@@ -121,7 +126,7 @@ class CrawlerManager:
             cmd = self._build_command(config, save_data_path=save_data_path)
 
             # Log start information
-            entry = self._create_log_entry(f"Starting crawler: {' '.join(cmd)}", "info")
+            entry = self._create_log_entry(f"正在启动采集进程：{' '.join(cmd)}", "info")
             await self._push_log(entry)
 
             try:
@@ -142,7 +147,7 @@ class CrawlerManager:
                 self.current_config = config
 
                 entry = self._create_log_entry(
-                    f"Crawler started on platform: {config.platform.value}, type: {config.crawler_type.value}",
+                    f"采集进程已启动，平台：{config.platform.value}，任务类型：{config.crawler_type.value}",
                     "success"
                 )
                 await self._push_log(entry)
@@ -153,7 +158,8 @@ class CrawlerManager:
                 return True
             except Exception as e:
                 self.status = "error"
-                entry = self._create_log_entry(f"Failed to start crawler: {str(e)}", "error")
+                self.error_message = "启动采集进程失败，请查看服务日志。"
+                entry = self._create_log_entry(f"启动采集进程失败：{str(e)}", "error")
                 await self._push_log(entry)
                 return False
 
@@ -164,7 +170,7 @@ class CrawlerManager:
                 return False
 
             self.status = "stopping"
-            entry = self._create_log_entry("Sending SIGTERM to crawler process...", "warning")
+            entry = self._create_log_entry("正在停止采集进程…", "warning")
             await self._push_log(entry)
 
             try:
@@ -178,19 +184,21 @@ class CrawlerManager:
 
                 # If still not exited, force kill
                 if self.process.poll() is None:
-                    entry = self._create_log_entry("Process not responding, sending SIGKILL...", "warning")
+                    entry = self._create_log_entry("采集进程未响应，正在强制结束…", "warning")
                     await self._push_log(entry)
                     self.process.kill()
 
-                entry = self._create_log_entry("Crawler process terminated", "info")
+                entry = self._create_log_entry("采集进程已终止", "info")
                 await self._push_log(entry)
 
             except Exception as e:
-                entry = self._create_log_entry(f"Error stopping crawler: {str(e)}", "error")
+                entry = self._create_log_entry(f"停止采集进程失败：{str(e)}", "error")
                 await self._push_log(entry)
 
             self.status = "idle"
             self.current_config = None
+            self.current_run_id = None
+            self.started_at = None
 
             # Cancel log reading task
             if self._read_task:
@@ -203,10 +211,11 @@ class CrawlerManager:
         """Get current status"""
         return {
             "status": self.status,
-            "platform": self.current_config.platform.value if self.current_config else None,
+            "platform": self.platform,
+            "current_run_id": self.current_run_id,
             "crawler_type": self.current_config.crawler_type.value if self.current_config else None,
             "started_at": self.started_at.isoformat() if self.started_at else None,
-            "error_message": None
+            "error_message": self.error_message,
         }
 
     def _build_command(
@@ -294,16 +303,22 @@ class CrawlerManager:
             if self.status == "running":
                 exit_code = self.process.returncode if self.process else -1
                 if exit_code == 0:
-                    entry = self._create_log_entry("Crawler completed successfully", "success")
+                    entry = self._create_log_entry("采集进程已成功完成", "success")
                 else:
-                    entry = self._create_log_entry(f"Crawler exited with code: {exit_code}", "warning")
+                    entry = self._create_log_entry(f"采集进程已退出，退出码：{exit_code}", "warning")
                 await self._push_log(entry)
                 self.status = "idle"
+                self.current_run_id = None
+                self.started_at = None
 
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            entry = self._create_log_entry(f"Error reading output: {str(e)}", "error")
+            entry = self._create_log_entry(f"读取采集进程输出失败：{str(e)}", "error")
+            self.status = "error"
+            self.error_message = "读取采集进程输出失败，请查看服务日志。"
+            self.current_run_id = None
+            self.started_at = None
             await self._push_log(entry)
 
 

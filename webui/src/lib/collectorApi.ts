@@ -61,6 +61,10 @@ export interface CollectionRun {
   created_at: string
   started_at: string | null
   finished_at: string | null
+  config_snapshot: {
+    platform: PlatformId
+    [key: string]: unknown
+  }
 }
 
 export interface CrawlerLog {
@@ -68,6 +72,27 @@ export interface CrawlerLog {
   timestamp: string
   level: string
   message: string
+  platform: PlatformId | null
+  run_id: string | null
+}
+
+export interface PlatformCapability {
+  platform: PlatformId
+  label: string
+  source_modes: Array<'search' | 'detail'>
+  login_supported: boolean
+  content_filters_supported: boolean
+}
+
+export interface PlatformStatus extends PlatformCapability {
+  process_status: 'idle' | 'running' | 'stopping' | 'error'
+  current_run_id: string | null
+  current_task_id: string | null
+  current_run_started_at: string | null
+  queued_count: number
+  login_state: 'idle' | 'running' | 'succeeded' | 'failed'
+  last_activity_at: string | null
+  error_message: string | null
 }
 
 export interface CollectedComment {
@@ -200,11 +225,19 @@ export const collectorApi = {
     })
     return response.data.items
   },
+  async platformStatuses() {
+    const response = await api.get<{ items: PlatformStatus[] }>('/platforms/status')
+    return response.data.items
+  },
+  async platformCapabilities() {
+    const response = await api.get<{ items: PlatformCapability[] }>('/platforms')
+    return response.data.items
+  },
   cancelRun: (runId: string) =>
     mutate<{ run_id: string; status: string }>(`/runs/${runId}/cancel`),
-  async logs(limit = 50) {
+  async logs(limit = 50, platform?: PlatformId, runId?: string) {
     const response = await api.get<{ logs: CrawlerLog[] }>('/crawler/logs', {
-      params: { limit },
+      params: { limit, platform, run_id: runId },
     })
     return response.data.logs
   },

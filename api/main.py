@@ -42,7 +42,7 @@ from sqlalchemy import text
 
 from .routers import accounts_router, auth_router, collection_router, crawler_router, data_router, filter_rules_router, websocket_router
 from .services.auth_service import require_admin
-from .services.collection_worker import collection_worker
+from .services.platform_runtime import collection_worker_supervisor
 from database.collector_database import apply_collector_migrations, close_collector_database, engine
 
 
@@ -53,11 +53,11 @@ async def lifespan(_app: FastAPI):
     if not admin_username or len(admin_password) < 16 or admin_password.startswith("replace-with"):
         raise RuntimeError("Set ADMIN_USERNAME and a unique ADMIN_PASSWORD of at least 16 characters in .env")
     await apply_collector_migrations()
-    await collection_worker.start()
+    await collection_worker_supervisor.start()
     try:
         yield
     finally:
-        await collection_worker.stop()
+        await collection_worker_supervisor.stop()
         await close_collector_database()
 
 app = FastAPI(

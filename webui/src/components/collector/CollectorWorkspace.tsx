@@ -11,6 +11,7 @@ import {
   type CollectionRun,
   type CollectionTask,
   type CollectedComment,
+  type PlatformStatus,
 } from '@/lib/collectorApi'
 import { TaskFormDialog } from './TaskFormDialog'
 import { AccountsPanel } from './AccountsPanel'
@@ -39,11 +40,33 @@ function runVariant(status: string) {
   return 'secondary'
 }
 
+function processStatusLabel(status: PlatformStatus['process_status']) {
+  if (status === 'running') return '运行中'
+  if (status === 'stopping') return '正在停止'
+  if (status === 'error') return '异常'
+  return '空闲'
+}
+
+function processStatusVariant(status: PlatformStatus['process_status']) {
+  if (status === 'running') return 'running'
+  if (status === 'error') return 'destructive'
+  if (status === 'stopping') return 'warning'
+  return 'idle'
+}
+
+function loginStateLabel(state: PlatformStatus['login_state']) {
+  if (state === 'running') return '登录中'
+  if (state === 'succeeded') return '已登录'
+  if (state === 'failed') return '登录失败'
+  return '未登录'
+}
+
 export function CollectorWorkspace({ username, onLogout }: { username: string; onLogout: () => Promise<void> }) {
   const [tab, setTab] = useState<WorkspaceTab>('tasks')
   const [tasks, setTasks] = useState<CollectionTask[]>([])
   const [runs, setRuns] = useState<CollectionRun[]>([])
   const [comments, setComments] = useState<CollectedComment[]>([])
+  const [platformStatuses, setPlatformStatuses] = useState<PlatformStatus[]>([])
   const [commentTotal, setCommentTotal] = useState(0)
   const [offset, setOffset] = useState(0)
   const [searchInput, setSearchInput] = useState('')
@@ -55,9 +78,14 @@ export function CollectorWorkspace({ username, onLogout }: { username: string; o
   const [loading, setLoading] = useState(false)
 
   const refreshTasks = useCallback(async () => {
-    const [nextTasks, nextRuns] = await Promise.all([collectorApi.tasks(), collectorApi.runs()])
+    const [nextTasks, nextRuns, nextPlatformStatuses] = await Promise.all([
+      collectorApi.tasks(),
+      collectorApi.runs(),
+      collectorApi.platformStatuses(),
+    ])
     setTasks(nextTasks)
     setRuns(nextRuns)
+    setPlatformStatuses(nextPlatformStatuses)
   }, [])
 
   const refreshComments = useCallback(async () => {
@@ -157,6 +185,27 @@ export function CollectorWorkspace({ username, onLogout }: { username: string; o
           </Card>
         </section>
 
+        <section className="grid grid-cols-1 gap-3 md:grid-cols-2" aria-label="平台运行状态">
+          {platformStatuses.map((status) => (
+            <Card key={status.platform} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-cyber-text-primary">{status.label}运行时</p>
+                  <p className="mt-1 text-xs text-cyber-text-muted">同平台任务按顺序执行，不同平台可并行采集。</p>
+                </div>
+                <Badge variant={processStatusVariant(status.process_status)}>{processStatusLabel(status.process_status)}</Badge>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+                <div><p className="text-cyber-text-muted">排队任务</p><p className="mt-1 text-base font-semibold text-cyber-text-primary">{status.queued_count}</p></div>
+                <div><p className="text-cyber-text-muted">账号状态</p><p className="mt-1 text-cyber-text-secondary">{loginStateLabel(status.login_state)}</p></div>
+                <div><p className="text-cyber-text-muted">最近启动</p><p className="mt-1 text-cyber-text-secondary">{formatDate(status.current_run_started_at)}</p></div>
+              </div>
+              {status.error_message && <p className="mt-3 text-xs text-red-300">{status.error_message}</p>}
+            </Card>
+          ))}
+          {!platformStatuses.length && <Card className="p-4 text-sm text-cyber-text-muted">正在读取平台运行状态…</Card>}
+        </section>
+
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cyber-border-subtle">
           <div className="flex gap-1" role="tablist" aria-label="工作台视图">
             <button role="tab" aria-selected={tab === 'tasks'} onClick={() => setTab('tasks')} className={`border-b-2 px-4 py-3 text-sm ${tab === 'tasks' ? 'border-cyber-neon-cyan text-cyber-neon-cyan' : 'border-transparent text-cyber-text-muted hover:text-cyber-text-primary'}`}>任务管理</button>
@@ -227,7 +276,7 @@ export function CollectorWorkspace({ username, onLogout }: { username: string; o
                         <td className="px-4 py-4"><Badge variant={taskStateVariant(task.state)}>{task.state === 'enabled' ? '启用' : task.state === 'paused' ? '暂停' : '停用'}</Badge></td>
                         <td className="px-4 py-4">
                           <div className="flex flex-wrap gap-1">
-                            <Button variant="secondary" size="sm" title="立即运行" disabled={task.state === 'disabled'} onClick={() => executeTaskAction('任务已加入串行队列', () => collectorApi.runTask(task.id))}><Play /></Button>
+                            <Button variant="secondary" size="sm" title="立即运行" disabled={task.state === 'disabled'} onClick={() => executeTaskAction('任务已加入平台队列', () => collectorApi.runTask(task.id))}><Play /></Button>
                             {task.state === 'enabled' ? <Button variant="outline" size="sm" title="暂停计划" onClick={() => executeTaskAction('已暂停计划', () => collectorApi.pauseTask(task.id))}><Pause /></Button> : task.state === 'paused' ? <Button variant="outline" size="sm" title="恢复计划" onClick={() => executeTaskAction('已恢复计划', () => collectorApi.resumeTask(task.id))}><Play /></Button> : null}
                             <Button variant="outline" size="sm" title="编辑任务" onClick={() => setEditingTask(task)}><Edit3 /></Button>
                             {task.state !== 'disabled' && <Button variant="destructive" size="sm" title="停用任务" onClick={() => executeTaskAction('任务已停用', () => collectorApi.disableTask(task.id))}><Trash2 /></Button>}

@@ -36,6 +36,14 @@ paths:
       summary: Stop Crawler
       description: Stop crawler task
       operationId: stop_crawler_api_crawler_stop_post
+      parameters:
+      - name: platform
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(dy|xhs)$
+        title: Platform
       responses:
         '200':
           description: Successful Response
@@ -49,6 +57,14 @@ paths:
       summary: Get Crawler Status
       description: Get crawler status
       operationId: get_crawler_status_api_crawler_status_get
+      parameters:
+      - name: platform
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(dy|xhs)$
+        title: Platform
       responses:
         '200':
           description: Successful Response
@@ -71,6 +87,20 @@ paths:
           type: integer
           default: 100
           title: Limit
+      - name: platform
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(dy|xhs)$
+        title: Platform
+      - name: run_id
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 36
+        title: Run Id
       responses:
         '200':
           description: Successful Response
@@ -83,6 +113,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/platforms:
+    get:
+      tags:
+      - collection
+      summary: List Platform Capabilities
+      operationId: list_platform_capabilities_api_platforms_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/platforms/status:
+    get:
+      tags:
+      - collection
+      summary: List Platform Statuses
+      operationId: list_platform_statuses_api_platforms_status_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /api/data/files:
     get:
       tags:
@@ -1015,6 +1069,11 @@ components:
           - type: string
           - type: 'null'
           title: Platform
+        current_run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Current Run Id
         crawler_type:
           anyOf:
           - type: string
@@ -1030,6 +1089,13 @@ components:
           - type: string
           - type: 'null'
           title: Error Message
+        platforms:
+          anyOf:
+          - type: array
+            items:
+              type: object
+          - type: 'null'
+          title: Platforms
       type: object
       required:
       - status

@@ -4,12 +4,12 @@
 
 from datetime import datetime
 from typing import Literal
-from urllib.parse import urlsplit
-import re
 from zoneinfo import ZoneInfo
 
 from apscheduler.triggers.cron import CronTrigger
 from pydantic import BaseModel, Field, model_validator
+
+from api.platforms import get_platform_definition
 
 
 Platform = Literal["dy", "xhs"]
@@ -17,37 +17,6 @@ SourceMode = Literal["search", "detail"]
 ScheduleType = Literal["manual", "interval", "cron"]
 ContentSort = Literal["general", "latest", "most_liked"]
 PublishTimeDays = Literal[0, 1, 7, 180]
-
-
-def _safe_source(platform: str, mode: str, value: str) -> str:
-    candidate = value.strip()
-    if mode == "search":
-        if not candidate or len(candidate) > 100:
-            raise ValueError("Search keywords must be 1-100 characters")
-        return candidate
-    if platform == "dy" and candidate.isdigit():
-        return candidate
-    parts = urlsplit(candidate)
-    host = (parts.hostname or "").lower()
-    if parts.scheme not in {"http", "https"}:
-        raise ValueError("Content source must be an HTTP(S) URL")
-    if platform == "xhs":
-        if host not in {"xiaohongshu.com", "www.xiaohongshu.com"}:
-            raise ValueError("Xiaohongshu source must use xiaohongshu.com")
-        match = re.search(r"/explore/([^/?]+)", parts.path)
-        if not match:
-            raise ValueError("Xiaohongshu source must be a note URL")
-        return f"https://www.xiaohongshu.com/explore/{match.group(1)}"
-    if host not in {"douyin.com", "www.douyin.com", "v.douyin.com"}:
-        raise ValueError("Douyin source must use douyin.com")
-    if host == "v.douyin.com":
-        return f"https://v.douyin.com{parts.path.rstrip('/')}"
-    modal_id = dict(item.split("=", 1) for item in parts.query.split("&") if "=" in item).get("modal_id")
-    match = re.search(r"/video/(\d+)", parts.path)
-    content_id = modal_id or (match.group(1) if match else None)
-    if not content_id:
-        raise ValueError("Douyin source must identify a video")
-    return content_id
 
 
 class TaskCreate(BaseModel):
@@ -72,7 +41,8 @@ class TaskCreate(BaseModel):
         self.name = self.name.strip()
         if not self.name:
             raise ValueError("Task name cannot be blank")
-        self.source_values = [_safe_source(self.platform, self.source_mode, item) for item in self.source_values]
+        parser = get_platform_definition(self.platform).source_parser
+        self.source_values = [parser(self.source_mode, item) for item in self.source_values]
         self.include_keywords = [item.strip() for item in self.include_keywords if item.strip()]
         self.exclude_keywords = [item.strip() for item in self.exclude_keywords if item.strip()]
         if self.schedule_type == "manual":

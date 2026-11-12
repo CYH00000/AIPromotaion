@@ -10,6 +10,7 @@ from urllib.parse import urlsplit, urlunsplit
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
+from api.platforms import get_platform_definition
 from database.collector_database import collector_session
 from database.collector_models import CollectedComment, CommentSnapshot, utc_now
 from api.services.filter_model_client import FilterModelError, evaluate_comment_batch
@@ -30,15 +31,15 @@ def normalize_content_url(platform: str, value: str | None) -> str:
     """Keep only stable public content URL components, dropping temporary query tokens."""
     if not value:
         return ""
+    try:
+        allowed_hosts = get_platform_definition(platform).allowed_hosts
+    except ValueError:
+        return ""
     parts = urlsplit(value.strip())
     host = (parts.hostname or "").lower()
-    allowed_hosts = {
-        "xhs": {"xiaohongshu.com", "www.xiaohongshu.com", "xhslink.com"},
-        "dy": {"douyin.com", "www.douyin.com", "v.douyin.com"},
-    }
     if parts.scheme not in {"http", "https"} or not any(
         host == allowed or host.endswith(f".{allowed}")
-        for allowed in allowed_hosts.get(platform, set())
+        for allowed in allowed_hosts
     ):
         return ""
     return urlunsplit(("https", host, parts.path.rstrip("/"), "", ""))
@@ -58,8 +59,9 @@ def _comment_timestamp(value) -> datetime | None:
 
 def normalize_comment(platform: str, raw: dict, content_index: dict) -> dict | None:
     """Map one MediaCrawler JSONL comment to the project allowlisted record shape."""
+    definition = get_platform_definition(platform)
     external_id = str(raw.get("comment_id") or "").strip()
-    content_id = str(raw.get("aweme_id" if platform == "dy" else "note_id") or "").strip()
+    content_id = str(raw.get(definition.content_id_field) or "").strip()
     body = str(raw.get("content") or "")
     if not external_id or not content_id or not body:
         return None
@@ -151,10 +153,11 @@ async def evaluate_candidates(candidates: list[dict], filter_rule: dict | None) 
 
 async def ingest_staging_directory(run_id: str, platform: str, task: dict, directory: Path) -> dict:
     """Filter MediaCrawler JSONL output and persist only matched comments."""
+    definition = get_platform_definition(platform)
     content_records = _read_jsonl(directory, "contents")
     comment_records = _read_jsonl(directory, "comments")
-    content_key = "aweme_id" if platform == "dy" else "note_id"
-    url_key = "aweme_url" if platform == "dy" else "note_url"
+    content_key = definition.content_id_field
+    url_key = definition.content_url_field
     content_index = {
         str(item.get(content_key)): {
             "title": item.get("title") or item.get("desc") or "",

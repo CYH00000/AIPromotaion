@@ -5,6 +5,9 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 import api.services.collection_worker as worker_module
+from api.platforms import get_platform_definition
+from api.services.collection_worker import PlatformCollectionWorker
+from api.services.crawler_manager import CrawlerManager
 from api.services.run_progress import JsonlLineCounter, is_stalled
 
 
@@ -101,9 +104,12 @@ async def test_progress_loop_writes_staged_counts(tmp_path, monkeypatch):
         await real_sleep(0)
 
     monkeypatch.setattr(worker_module.asyncio, "sleep", fake_sleep)
+    worker = PlatformCollectionWorker(
+        get_platform_definition("dy"), CrawlerManager("dy")
+    )
 
     with pytest.raises(asyncio.CancelledError):
-        await worker_module.collection_worker._progress_loop(
+        await worker._progress_loop(
             "run-id", staging, {"phase": "crawling"}
         )
 
@@ -121,7 +127,7 @@ def test_recover_staging_moves_partial_data(tmp_path, monkeypatch):
     staging.mkdir(parents=True)
     (staging / "search_comments_test.jsonl").write_text('{"id":1}\n', encoding="utf-8")
 
-    worker_module.CollectionWorker._recover_staging(staging, "run-1")
+    PlatformCollectionWorker._recover_staging(staging, "run-1")
 
     assert not staging.exists()
     recovered = tmp_path / "data" / "recovered_runs" / "run-1" / "search_comments_test.jsonl"

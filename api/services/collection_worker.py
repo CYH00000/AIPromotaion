@@ -14,9 +14,7 @@ from sqlalchemy import select
 from api.schemas.crawler import CrawlerStartRequest, CrawlerTypeEnum, LoginTypeEnum, PlatformEnum, SaveDataOptionEnum
 from api.services.account_service import login_active
 from api.services.collection_pipeline import ingest_staging_directory
-from api.services.crawler_manager import crawler_manager
 from api.services.run_progress import JsonlLineCounter, is_stalled
-from api.services.task_service import create_run, next_scheduled_time
 from database.collector_database import collector_session
 from database.collector_models import CollectionRun, CollectionTask, utc_now
 
@@ -39,89 +37,49 @@ SEMANTIC_ERROR_LABELS = {
 }
 
 
-class CollectionWorker:
-    """Single-process durable queue and scheduler for project collection runs."""
+class PlatformCollectionWorker:
+    """Durable queue worker scoped to one media platform."""
 
-    def __init__(self):
+    def __init__(self, definition, manager):
+        self.definition = definition
+        self.platform = definition.platform_id
+        self.manager = manager
         self.current_run_id: str | None = None
         self._runner: asyncio.Task | None = None
-        self._scheduler: asyncio.Task | None = None
         self._stopping = False
 
     async def start(self) -> None:
-        async with collector_session() as session:
-            active = await session.execute(select(CollectionRun).where(CollectionRun.status == "running"))
-            interrupted = [
-                {"id": run.id, "config": run.config_snapshot}
-                for run in active.scalars().all()
-            ]
-        for run in interrupted:
-            staging = PROJECT_ROOT / "data" / "project_runs" / run["id"]
-            self._recover_staging(staging, run["id"])
-            async with collector_session() as session:
-                stored = await session.get(CollectionRun, run["id"])
-                if stored and stored.status == "running":
-                    stored.status = "interrupted"
-                    stored.phase = "failed"
-                    stored.counts = {}
-                    stored.progress = {**(stored.progress or {}), "stalled": False}
-                    stored.finished_at = utc_now()
-                    stored.safe_summary = "服务在采集期间重启；暂存数据已保留到恢复目录，可重新运行任务。"
-        self._cleanup_stale_staging()
         self._stopping = False
-        self._runner = asyncio.create_task(self._run_loop(), name="collector-run-worker")
-        self._scheduler = asyncio.create_task(self._schedule_loop(), name="collector-scheduler")
+        self._runner = asyncio.create_task(
+            self._run_loop(), name=f"collector-run-worker-{self.platform}"
+        )
 
     async def stop(self) -> None:
         self._stopping = True
-        if crawler_manager.process and crawler_manager.process.poll() is None:
-            await crawler_manager.stop()
-        for task in (self._scheduler, self._runner):
-            if task and not task.done():
-                task.cancel()
+        if self.manager.process and self.manager.process.poll() is None:
+            await self.manager.stop()
+        if self._runner and not self._runner.done():
+            self._runner.cancel()
         await asyncio.gather(
-            *(task for task in (self._scheduler, self._runner) if task),
+            *(task for task in (self._runner,) if task),
             return_exceptions=True,
         )
 
     async def request_cancel(self, run_id: str) -> None:
         if self.current_run_id == run_id:
-            await crawler_manager.stop()
-
-    async def _schedule_loop(self) -> None:
-        while not self._stopping:
-            try:
-                now = utc_now()
-                async with collector_session() as session:
-                    result = await session.execute(
-                        select(CollectionTask)
-                        .where(
-                            CollectionTask.state == "enabled",
-                            CollectionTask.schedule_type != "manual",
-                            CollectionTask.next_run_at <= now,
-                        )
-                        .order_by(CollectionTask.next_run_at)
-                        .limit(20)
-                        .with_for_update(skip_locked=True)
-                    )
-                    for task in result.scalars().all():
-                        session.add(create_run(task, "schedule"))
-                        task.next_run_at = next_scheduled_time(
-                            task.schedule_type, task.schedule_value, now
-                        )
-            except asyncio.CancelledError:
-                raise
-            except Exception as exc:
-                print(f"Collector scheduler error: {type(exc).__name__}")
-            await asyncio.sleep(5)
+            await self.manager.stop()
 
     async def _claim_next_run(self) -> dict[str, Any] | None:
-        if login_active():
+        if login_active(self.platform):
             return None
         async with collector_session() as session:
             result = await session.execute(
                 select(CollectionRun)
-                .where(CollectionRun.status == "queued")
+                .join(CollectionTask, CollectionRun.task_id == CollectionTask.id)
+                .where(
+                    CollectionRun.status == "queued",
+                    CollectionTask.platform == self.platform,
+                )
                 .order_by(CollectionRun.created_at)
                 .limit(1)
                 .with_for_update(skip_locked=True)
@@ -203,23 +161,24 @@ class CollectionWorker:
                 publish_time_days=config.get("publish_time_days", 0),
             )
 
-            started = await crawler_manager.start(
+            started = await self.manager.start(
                 crawl_config,
                 save_data_path=str(staging),
                 extra_env={
                     "COLLECTOR_PROJECT_MODE": "1",
                     "COLLECTOR_RUN_ID": run["run_id"],
                 },
+                run_id=run["run_id"],
             )
-            if not started or crawler_manager.process is None:
-                await self._finish_run(run["run_id"], "failed", {}, "crawler_busy", "Another collector process is running.")
+            if not started or self.manager.process is None:
+                await self._finish_run(run["run_id"], "failed", {}, "crawler_busy", "该平台已有采集进程在运行。")
                 return
 
             progress_state["phase"] = "crawling"
-            process = crawler_manager.process
+            process = self.manager.process
             exit_code = await asyncio.to_thread(process.wait)
-            if crawler_manager._read_task:
-                await crawler_manager._read_task
+            if self.manager._read_task:
+                await self.manager._read_task
             progress_state["phase"] = "filtering"
             counts = await ingest_staging_directory(run["run_id"], config["platform"], config, staging)
             progress_state["phase"] = "finalizing"
@@ -255,13 +214,13 @@ class CollectionWorker:
     async def _progress_loop(self, run_id: str, staging: Path, state: dict[str, str]) -> None:
         counter = JsonlLineCounter()
         last_counts = (0, 0)
-        last_log_id = crawler_manager._log_id
+        last_log_id = self.manager._log_id
         last_activity = utc_now()
         while True:
             await asyncio.sleep(3)
             try:
                 contents, comments = counter.scan(staging)
-                log_id = crawler_manager._log_id
+                log_id = self.manager._log_id
                 phase = state["phase"]
                 now = utc_now()
                 changed = (contents, comments) != last_counts or log_id != last_log_id
@@ -340,6 +299,3 @@ class CollectionWorker:
             run.error_code = error_code
             run.safe_summary = summary
             run.finished_at = datetime.now(timezone.utc)
-
-
-collection_worker = CollectionWorker()

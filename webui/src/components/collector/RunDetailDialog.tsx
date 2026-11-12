@@ -63,12 +63,13 @@ export function RunDetailDialog({ run, onClose, onChanged }: RunDetailDialogProp
   const [canceling, setCanceling] = useState(false)
 
   const loadLogs = useCallback(async () => {
+    if (!run) return
     try {
-      setLogs(await collectorApi.logs(50))
+      setLogs(await collectorApi.logs(50, run.config_snapshot.platform, run.id))
     } catch {
       // Logs are diagnostic only; keep the dialog usable if the endpoint fails.
     }
-  }, [])
+  }, [run])
 
   useEffect(() => {
     if (!run) return

@@ -21,7 +21,10 @@ from typing import Set, Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from ..services import crawler_manager
+from ..services.platform_runtime import (
+    aggregate_platform_status,
+    platform_runtime_registry,
+)
 from ..services.auth_service import AUTH_COOKIE, get_valid_session
 
 router = APIRouter(tags=["websocket"])
@@ -61,19 +64,26 @@ manager = ConnectionManager()
 
 
 async def log_broadcaster():
-    """Background task: read logs from queue and broadcast"""
-    queue = crawler_manager.get_log_queue()
-    while True:
-        try:
-            # Get log entry from queue
+    """Read each platform queue and broadcast entries with platform metadata."""
+
+    async def relay(runtime):
+        queue = runtime.manager.get_log_queue()
+        while True:
             entry = await queue.get()
-            # Broadcast to all WebSocket connections
             await manager.broadcast(entry.model_dump())
-        except asyncio.CancelledError:
-            break
-        except Exception as e:
-            print(f"Log broadcaster error: {e}")
-            await asyncio.sleep(0.1)
+
+    tasks = [
+        asyncio.create_task(relay(runtime), name=f"log-broadcast-{runtime.platform}")
+        for runtime in platform_runtime_registry.all()
+    ]
+    try:
+        await asyncio.gather(*tasks)
+    except asyncio.CancelledError:
+        pass
+    finally:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
 
 
 # Global broadcast task
@@ -104,14 +114,20 @@ async def websocket_logs(websocket: WebSocket):
         print(f"[WS] Connected, active connections: {len(manager.active_connections)}")
 
         # Send existing logs
-        for log in crawler_manager.logs:
+        existing_logs = [
+            log
+            for runtime in platform_runtime_registry.all()
+            for log in runtime.manager.logs
+        ]
+        existing_logs.sort(key=lambda log: log.timestamp)
+        for log in existing_logs:
             try:
                 await websocket.send_json(log.model_dump())
             except Exception as e:
                 print(f"[WS] Error sending existing log: {e}")
                 break
 
-        print(f"[WS] Sent {len(crawler_manager.logs)} existing logs, entering main loop")
+        print(f"[WS] Sent {len(existing_logs)} existing logs, entering main loop")
 
         while True:
             # Keep connection alive, receive heartbeat or any message
@@ -150,7 +166,15 @@ async def websocket_status(websocket: WebSocket):
     try:
         while True:
             # Send status every second
-            status = crawler_manager.get_status()
+            statuses = [
+                runtime.manager.get_status()
+                for runtime in platform_runtime_registry.all()
+            ]
+            status = {
+                "status": aggregate_platform_status(statuses),
+                "platform": None,
+                "platforms": statuses,
+            }
             await websocket.send_json(status)
             await asyncio.sleep(1)
     except WebSocketDisconnect:
