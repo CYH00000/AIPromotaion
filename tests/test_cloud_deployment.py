@@ -137,6 +137,16 @@ def test_dockerignore_excludes_local_data_and_secrets():
         assert entry in dockerignore
 
 
+def test_dockerignore_keeps_python_cache_package_for_platform_imports():
+    dockerignore_entries = {
+        line.strip()
+        for line in Path(".dockerignore").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    }
+    assert "cache" not in dockerignore_entries
+    assert Path("cache/abs_cache.py").is_file()
+
+
 def test_host_scripts_are_safe_and_relative_to_project_root():
     for name in ("prepare.sh", "deploy.sh", "status.sh", "logs.sh", "setup-tailscale.sh", "upgrade.sh"):
         text = Path("deploy", name).read_text(encoding="utf-8")

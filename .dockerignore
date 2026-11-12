@@ -15,7 +15,6 @@ deploy/backups
 
 browser_data
 data
-cache
 database/sqlite_tables.db
 
 .tools
