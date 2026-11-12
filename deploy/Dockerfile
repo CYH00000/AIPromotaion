@@ -37,9 +37,11 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY pyproject.toml uv.lock README.md ./
-RUN UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple \
+RUN UV_DEFAULT_INDEX=https://mirrors.aliyun.com/pypi/simple \
     UV_HTTP_TIMEOUT=300 \
-    uv sync --frozen --no-install-project
+    UV_HTTP_RETRIES=5 \
+    UV_CONCURRENT_DOWNLOADS=2 \
+    uv sync --frozen --no-install-project --verbose
 
 COPY . .
 COPY --from=webui /build/api/webui ./api/webui
