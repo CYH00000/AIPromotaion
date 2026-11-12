@@ -1,0 +1,84 @@
+name: ${COMPOSE_PROJECT_NAME:-collector-cloud}
+
+services:
+  app:
+    image: ${COLLECTOR_IMAGE:-collector-cloud-app:local}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    env_file:
+      - ${PRODUCTION_ENV_FILE:-.env.production}
+    environment:
+      DISPLAY: ":99"
+      POSTGRES_DB_HOST: postgres
+      POSTGRES_DB_PORT: "5432"
+      SESSION_COOKIE_SECURE: "true"
+      ENABLE_CDP_MODE: "false"
+    ports:
+      - "127.0.0.1:${APP_BIND_PORT:-8080}:8080"
+      - "127.0.0.1:${NOVNC_BIND_PORT:-6080}:6080"
+    volumes:
+      - browser_data:/app/browser_data
+      - project_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    init: true
+    shm_size: "1gb"
+    restart: unless-stopped
+    stop_grace_period: 60s
+    healthcheck:
+      test:
+        - CMD
+        - /app/.venv/bin/python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    networks:
+      - collector_private
+
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_NAME:?POSTGRES_DB_NAME is required}
+      POSTGRES_USER: ${POSTGRES_DB_USER:?POSTGRES_DB_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_DB_PWD:?POSTGRES_DB_PWD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    networks:
+      - collector_private
+
+volumes:
+  postgres_data:
+  browser_data:
+  project_data:
+
+networks:
+  collector_private:
+    driver: bridge
+    internal: true

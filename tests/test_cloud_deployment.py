@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+import yaml
 
 
 def valid_environment() -> dict[str, str]:
@@ -74,3 +75,30 @@ def test_production_environment_rejects_unsafe_values(key: str, value: str, mess
     values = valid_environment()
     values[key] = value
     assert message in validate_environment(values)
+
+
+def load_production_compose() -> dict:
+    return yaml.safe_load(Path("deploy/compose.prod.yml").read_text(encoding="utf-8"))
+
+
+def test_compose_publishes_only_loopback_ports():
+    compose = load_production_compose()
+    services = compose["services"]
+    assert services["postgres"].get("ports") is None
+    assert services["app"]["ports"] == [
+        "127.0.0.1:${APP_BIND_PORT:-8080}:8080",
+        "127.0.0.1:${NOVNC_BIND_PORT:-6080}:6080",
+    ]
+    rendered = str(compose)
+    assert "9222" not in rendered
+    assert "0.0.0.0:8080" not in rendered
+
+
+def test_compose_uses_private_persistent_storage_and_healthchecks():
+    compose = load_production_compose()
+    services = compose["services"]
+    assert "healthcheck" in services["app"]
+    assert "healthcheck" in services["postgres"]
+    assert set(compose["volumes"]) == {"postgres_data", "browser_data", "project_data"}
+    assert services["postgres"]["volumes"] == ["postgres_data:/var/lib/postgresql"]
+    assert services["app"]["depends_on"]["postgres"]["condition"] == "service_healthy"
