@@ -54,6 +54,7 @@
 
 ## 文档
 
+- [完整文档目录](docs/README.md)
 - [项目范围与当前状态](docs/project-overview.md)
 - [架构决策与路线图](docs/architecture/decisions.md)、[实施路线图](docs/architecture/roadmap.md)
 - [后续计划与未实现能力](docs/architecture/backlog.md)
